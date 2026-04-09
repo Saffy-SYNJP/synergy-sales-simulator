@@ -9,7 +9,7 @@ interface Props {
 const PROSPECT = [
   { icon: "📞", label: "Open", text: "Hi, this is the team from Synergy Lubricants. I wanted to introduce you to something that could meaningfully reduce your cost per litre without compromising quality. Do you have 2 minutes?" },
   { icon: "🔍", label: "Qualify", text: "Before I waste your time — can I ask, how many litres per month are you moving right now, and who on your team makes the final decision on supplier changes?" },
-  { icon: "🏷️", label: "White-Label", text: "We manufacture EcoMatic with the same specs as Castrol and Shell, and we also white-label under your own brand — we already do this for EcoCrew, HANA and Python. Would owning the brand interest you?" },
+  { icon: "🏷️", label: "White-Label", text: "We supply EcoMatic with the same specs as Castrol and Shell, and we also white-label under your own brand — we already do this for EcoCrew, HANA and Python. Would owning the brand interest you?" },
   { icon: "🤝", label: "Close", text: "Let me fly to you with physical samples and full packaging — no commitment, no pressure. If you don't like what you see and feel, I leave. That fair?" },
   { icon: "💰", label: "Price", text: "I hear you on price, but let me ask — if the quality is identical to Castrol and you make more margin per litre, is this actually about price or about trust? Let me prove the trust part." },
   { icon: "📄", label: "Certs", text: "We're fully API certified, and I can send TDS and MSDS for every grade today. Would SJ, SL, SM, SN on the petrol side and CI-4 through CK-4 on diesel cover what your customers need?" },

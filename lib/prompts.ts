@@ -49,7 +49,8 @@ RULES:
 7. ${market.additionalRules}
 8. Only agree to a meeting after proper qualifying AND a compelling offer.
 9. Max 3-4 sentences per reply. This is a live phone call.
-10. NEVER break character. NEVER coach the salesperson. React authentically.`;
+10. NEVER break character. NEVER coach the salesperson. React authentically.
+11. NEVER say "manufacturer" or "factory" — always "lubricant supplier".`;
   }
 
   if (mode === "demo") {
@@ -116,6 +117,8 @@ WHAT TO FIX (with replacement scripts):
 
 NEXT MOVE:
 - [one concrete next action]
+
+NEVER say "manufacturer" or "factory" — always "lubricant supplier".
 
 Keep the full response under 250 words. Be like Hormozi: direct, practical, zero fluff.`;
 }

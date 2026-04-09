@@ -37,6 +37,7 @@ export default function ChatPanel({ mode, marketId, objection, userEmail, userNa
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [pointsResult, setPointsResult] = useState<{ breakdown: PointsBreakdown; newBadges: BadgeId[] } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const lastSpokenIdRef = useRef<string | null>(null);
 
   const market = marketId ? MARKETS[marketId] : undefined;
@@ -75,12 +76,15 @@ export default function ChatPanel({ mode, marketId, objection, userEmail, userNa
   });
 
   useEffect(() => {
-    requestAnimationFrame(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; });
+    scrollAnchorRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
+  const prevMsgCountRef = useRef(0);
   useEffect(() => {
+    if (messages.length === prevMsgCountRef.current) return;
+    prevMsgCountRef.current = messages.length;
     const lastUser = [...messages].reverse().find((m) => m.role === "user");
-    if (lastUser) setScore((prev) => updateScore(prev, lastUser.content));
+    if (lastUser) setScore((prev) => updateScore(prev, lastUser.content as string));
   }, [messages]);
 
   const userMsgCount = messages.filter((m) => m.role === "user").length;
@@ -235,6 +239,7 @@ export default function ChatPanel({ mode, marketId, objection, userEmail, userNa
                 <div className="whitespace-pre-wrap">{error.message}</div>
               </div>
             )}
+            <div ref={scrollAnchorRef} />
           </div>
 
           {!needsMarket && (

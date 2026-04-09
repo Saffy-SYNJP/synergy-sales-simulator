@@ -4,7 +4,7 @@ SYNERGY PRODUCT BRIEF:
 - Brand: EcoMatic — motorcycle, passenger car, heavy-duty diesel, gear oil, grease, industrial
 - Packaging: 0.8Lx12, 1Lx12, 0.8Lx24, 1Lx24, 1.8Lx12, 4Lx6, 5Lx4, 6Lx4 small packs; 18L/20L/25L/25kg buckets/jerrycans (plastic or tin cans); 180kg grease drums; 200L/208L/210L drums (plastic or metal)
 - Grades: SJ/SL/SM/SN (petrol/motorcycle); CI-4/CH-4/CF-4/CJ-4/CK-4 (diesel/heavy duty)
-- WHITE-LABEL: Synergy manufactures lubricants under CLIENT'S OWN BRAND NAME. Already doing for EcoCrew, HANA, Python brands. This is the NUCLEAR OFFER for brand-loyal prospects.
+- WHITE-LABEL: Synergy supplies lubricants under CLIENT'S OWN BRAND NAME. Already doing for EcoCrew, HANA, Python brands. This is the NUCLEAR OFFER for brand-loyal prospects.
 - Quality claim: Same international specs as Castrol/Shell — cheaper because no brand marketing overhead. Direct lubricant supplier.
 - Risk Reversal: Will VISIT IN PERSON with physical oil samples AND packaging materials. No commitment required.
 - Certifications: API certified, full TDS and MSDS documentation provided on request
