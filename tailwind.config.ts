@@ -8,25 +8,31 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Legacy navy/gold — kept for backwards compat, mapped to CSS vars
         navy: {
-          DEFAULT: "#0a0f1a",
-          surface: "#111827",
-          card: "#1a2332",
-          hover: "#1f2b3d",
-          border: "#1e293b",
+          DEFAULT: "var(--bg-primary)",
+          surface: "var(--bg-secondary)",
+          card: "var(--bg-card)",
+          hover: "var(--bg-hover)",
+          border: "var(--border)",
         },
         gold: {
-          DEFAULT: "#f59e0b",
-          light: "#fbbf24",
-          dark: "#d97706",
-          muted: "#92400e",
+          DEFAULT: "var(--accent)",
+          light: "var(--accent-light)",
+          dark: "var(--accent-dark)",
+          muted: "var(--accent-muted)",
         },
         accent: {
           blue: "#3b82f6",
           purple: "#8b5cf6",
           green: "#10b981",
-          red: "#ef4444",
+          red: "#ff0000",
           cyan: "#06b6d4",
+        },
+        yt: {
+          red: "#ff0000",
+          "red-hover": "#cc0000",
+          "red-dark": "#990000",
         },
       },
       fontFamily: {
@@ -41,9 +47,9 @@ const config: Config = {
       },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
-        "gradient-card": "linear-gradient(135deg, #111827 0%, #1a2332 100%)",
-        "gradient-gold": "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
-        "gradient-hero": "linear-gradient(180deg, #0a0f1a 0%, #111827 100%)",
+        "gradient-card": "linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-card) 100%)",
+        "gradient-gold": "linear-gradient(135deg, #ff0000 0%, #cc0000 100%)",
+        "gradient-hero": "linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 100%)",
       },
       animation: {
         "fade-in": "fadeIn 0.3s ease-out",

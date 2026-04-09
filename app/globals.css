@@ -2,13 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+/* ===== YouTube-inspired Dark Theme (default) ===== */
+:root, [data-theme="dark"] {
   color-scheme: dark;
-  --color-navy: #0a0f1a;
-  --color-surface: #111827;
-  --color-card: #1a2332;
-  --color-gold: #f59e0b;
-  --color-border: #1e293b;
+  --bg-primary: #0f0f0f;
+  --bg-secondary: #1a1a1a;
+  --bg-card: #212121;
+  --bg-hover: #2a2a2a;
+  --border: #3f3f3f;
+  --accent: #ff0000;
+  --accent-light: #ff3333;
+  --accent-dark: #cc0000;
+  --accent-muted: #660000;
+  --text-primary: #f1f1f1;
+  --text-secondary: #aaaaaa;
+  --text-muted: #717171;
+  --glass-bg: rgba(33, 33, 33, 0.9);
+  --glass-border: rgba(63, 63, 63, 0.6);
+}
+
+/* ===== YouTube-inspired Light Theme ===== */
+[data-theme="light"] {
+  color-scheme: light;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f2f2f2;
+  --bg-card: #ffffff;
+  --bg-hover: #e8e8e8;
+  --border: #e0e0e0;
+  --accent: #ff0000;
+  --accent-light: #ff3333;
+  --accent-dark: #cc0000;
+  --accent-muted: #ffcccc;
+  --text-primary: #0f0f0f;
+  --text-secondary: #606060;
+  --text-muted: #909090;
+  --glass-bg: rgba(255, 255, 255, 0.95);
+  --glass-border: rgba(0, 0, 0, 0.08);
 }
 
 html {
@@ -17,8 +46,8 @@ html {
 }
 
 html, body {
-  background: var(--color-navy);
-  color: #e5e7eb;
+  background: var(--bg-primary);
+  color: var(--text-primary);
   font-family: Inter, system-ui, -apple-system, sans-serif;
 }
 
@@ -26,42 +55,42 @@ html, body {
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: var(--border);
   border-radius: 3px;
 }
-::-webkit-scrollbar-thumb:hover { background: #475569; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
 /* Utility classes */
 @layer utilities {
   .glass {
-    background: rgba(17, 24, 39, 0.8);
+    background: var(--glass-bg);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
   }
 
   .glass-card {
-    background: linear-gradient(135deg, rgba(26, 35, 50, 0.9) 0%, rgba(17, 24, 39, 0.95) 100%);
-    border: 1px solid rgba(30, 41, 59, 0.6);
+    background: var(--bg-card);
+    border: 1px solid var(--glass-border);
   }
 
   .glass-card-hover:hover {
-    border-color: rgba(245, 158, 11, 0.3);
-    box-shadow: 0 0 20px rgba(245, 158, 11, 0.05);
+    border-color: rgba(255, 0, 0, 0.3);
+    box-shadow: 0 0 20px rgba(255, 0, 0, 0.05);
   }
 
   .text-gradient-gold {
-    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+    background: linear-gradient(135deg, #ff3333 0%, #ff0000 50%, #cc0000 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
 
   .border-gradient {
-    border-image: linear-gradient(135deg, rgba(245, 158, 11, 0.5), rgba(245, 158, 11, 0.1)) 1;
+    border-image: linear-gradient(135deg, rgba(255, 0, 0, 0.5), rgba(255, 0, 0, 0.1)) 1;
   }
 
   .shimmer-bg {
-    background: linear-gradient(90deg, transparent 0%, rgba(245, 158, 11, 0.05) 50%, transparent 100%);
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 0, 0, 0.05) 50%, transparent 100%);
     background-size: 200% 100%;
     animation: shimmer 2s linear infinite;
   }
@@ -97,7 +126,7 @@ html, body {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #6b7280;
+  background: var(--text-muted);
   animation: typing-bounce 1.2s ease-in-out infinite;
 }
 
@@ -111,4 +140,26 @@ html, body {
   button, [role="button"] {
     -webkit-tap-highlight-color: transparent;
   }
+}
+
+/* Gradient overrides for YouTube red */
+.bg-gradient-gold {
+  background: linear-gradient(135deg, #ff0000 0%, #cc0000 100%) !important;
+}
+
+.shadow-glow {
+  box-shadow: 0 0 20px rgba(255, 0, 0, 0.15) !important;
+}
+
+.shadow-glow-sm {
+  box-shadow: 0 0 10px rgba(255, 0, 0, 0.1) !important;
+}
+
+/* Light theme specific overrides */
+[data-theme="light"] .glass-card {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .bg-gradient-hero {
+  background: linear-gradient(180deg, #ffffff 0%, #f2f2f2 100%);
 }

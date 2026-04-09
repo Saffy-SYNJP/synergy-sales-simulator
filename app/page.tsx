@@ -4,6 +4,7 @@ import { getSession, logout, SessionUser, isAdmin as checkAdmin } from "@/lib/au
 import { getMarketsForRole, MarketId, Market } from "@/lib/markets";
 import { getLevelForPoints, getProgressToNextLevel } from "@/lib/gamification";
 import { getPoints } from "@/lib/store";
+import { Theme, initTheme, setStoredTheme } from "@/lib/theme";
 import LoginPage from "@/components/LoginPage";
 import ModeSelector from "@/components/ModeSelector";
 import MarketSelector from "@/components/MarketSelector";
@@ -28,13 +29,22 @@ export default function Home() {
   const [levelUpModal, setLevelUpModal] = useState<number | null>(null);
   const [points, setPoints] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [theme, setTheme] = useState<Theme>("dark");
 
   useEffect(() => {
+    const t = initTheme();
+    setTheme(t);
     const session = getSession();
     setUser(session);
     if (session) setPoints(getPoints(session.email));
     setLoading(false);
   }, []);
+
+  const toggleTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    setStoredTheme(next);
+  };
 
   const refreshPoints = () => { if (user) setPoints(getPoints(user.email)); };
   const handleLogin = (u: SessionUser) => { setUser(u); setPoints(getPoints(u.email)); };
@@ -70,11 +80,13 @@ export default function Home() {
     { id: "admin", label: "Admin", icon: "⚙️", adminOnly: true },
   ];
 
+  const guideUrl = "/guide";
+
   return (
     <div className="min-h-screen bg-navy-DEFAULT flex flex-col">
       {/* Background glow */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-96 h-96 bg-gold/[0.03] rounded-full blur-3xl" />
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-yt-red/[0.03] rounded-full blur-3xl" />
         <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-accent-blue/[0.03] rounded-full blur-3xl" />
       </div>
 
@@ -113,16 +125,32 @@ export default function Home() {
           {/* User info + logout */}
           <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             <div className="hidden sm:flex items-center gap-2">
-              <span className="text-xs text-gray-400">{user.name}</span>
+              <span className="text-xs" style={{ color: "var(--text-secondary)" }}>{user.name}</span>
               {admin && (
                 <span className="text-[9px] bg-gold/15 text-gold px-1.5 py-0.5 rounded-md font-semibold border border-gold/20">
                   Admin
                 </span>
               )}
             </div>
+            <a
+              href={guideUrl}
+              target="_blank"
+              className="text-[11px] px-2 py-1 rounded-lg hover:bg-navy-hover transition-all"
+              style={{ color: "var(--text-muted)" }}
+            >
+              Guide
+            </a>
+            <button
+              onClick={toggleTheme}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-sm hover:bg-navy-hover transition-all"
+              title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+            >
+              {theme === "dark" ? "☀️" : "🌙"}
+            </button>
             <button
               onClick={handleLogout}
-              className="text-[11px] text-gray-500 hover:text-accent-red px-2 py-1 rounded-lg hover:bg-accent-red/10 transition-all"
+              className="text-[11px] px-2 py-1 rounded-lg hover:bg-accent-red/10 transition-all"
+              style={{ color: "var(--text-muted)" }}
             >
               Logout
             </button>
