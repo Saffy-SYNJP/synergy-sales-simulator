@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useConversation } from "@11labs/react";
+import { useConversation } from "@elevenlabs/react";
 import { Mode } from "@/lib/prompts";
 import { Market, MarketId } from "@/lib/markets";
 import { getConvaiOverrides } from "@/lib/convai";
