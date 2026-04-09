@@ -4,41 +4,73 @@
 
 :root {
   color-scheme: dark;
+  --color-navy: #0a0f1a;
+  --color-surface: #111827;
+  --color-card: #1a2332;
+  --color-gold: #f59e0b;
+  --color-border: #1e293b;
 }
 
-html,
-body {
-  background: #0d1b2e;
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html, body {
+  background: var(--color-navy);
   color: #e5e7eb;
   font-family: Inter, system-ui, -apple-system, sans-serif;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: #0d1b2e;
-}
+/* Premium scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: #1e304d;
-  border-radius: 4px;
+  background: #334155;
+  border-radius: 3px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: #2a4063;
+::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* Utility classes */
+@layer utilities {
+  .glass {
+    background: rgba(17, 24, 39, 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .glass-card {
+    background: linear-gradient(135deg, rgba(26, 35, 50, 0.9) 0%, rgba(17, 24, 39, 0.95) 100%);
+    border: 1px solid rgba(30, 41, 59, 0.6);
+  }
+
+  .glass-card-hover:hover {
+    border-color: rgba(245, 158, 11, 0.3);
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.05);
+  }
+
+  .text-gradient-gold {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .border-gradient {
+    border-image: linear-gradient(135deg, rgba(245, 158, 11, 0.5), rgba(245, 158, 11, 0.1)) 1;
+  }
+
+  .shimmer-bg {
+    background: linear-gradient(90deg, transparent 0%, rgba(245, 158, 11, 0.05) 50%, transparent 100%);
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
 }
 
-/* CSS-only typing indicator — no JS animation loops, no heavy GPU effects */
+/* Animations */
 @keyframes typing-bounce {
-  0%, 80%, 100% {
-    transform: translateY(0);
-    opacity: 0.4;
-  }
-  40% {
-    transform: translateY(-4px);
-    opacity: 1;
-  }
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+  40% { transform: translateY(-4px); opacity: 1; }
 }
 
 @keyframes bounce-in {
@@ -47,9 +79,18 @@ body {
   100% { transform: scale(1); opacity: 1; }
 }
 
-.animate-bounce-in {
-  animation: bounce-in 0.4s ease-out;
+@keyframes count-up {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-bounce-in { animation: bounce-in 0.4s ease-out; }
+.animate-count-up { animation: count-up 0.5s ease-out forwards; }
 
 .typing-dot {
   display: inline-block;
@@ -58,4 +99,16 @@ body {
   border-radius: 50%;
   background: #6b7280;
   animation: typing-bounce 1.2s ease-in-out infinite;
+}
+
+/* Mobile safe area */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+}
+
+/* Touch improvements */
+@media (hover: none) {
+  button, [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+  }
 }

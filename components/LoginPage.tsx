@@ -16,79 +16,101 @@ export default function LoginPage({ onLogin }: Props) {
     e.preventDefault();
     setLoading(true);
     setError("");
-
     setTimeout(() => {
       const user = login(email, password);
-      if (user) {
-        onLogin(user);
-      } else {
-        setError("Invalid email or password");
-      }
+      if (user) { onLogin(user); }
+      else { setError("Invalid email or password"); }
       setLoading(false);
-    }, 400);
+    }, 500);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-navy p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-hero">
+      {/* Background decoration */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 -left-32 w-96 h-96 bg-gold/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-accent-blue/5 rounded-full blur-3xl" />
+      </div>
+
+      <div className="w-full max-w-sm relative z-10 animate-fade-in">
+        {/* Logo area */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gold mb-2">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-gold mb-4 shadow-glow">
+            <span className="text-2xl font-bold text-navy">S</span>
+          </div>
+          <h1 className="text-2xl font-bold text-gradient-gold">
             Synergy Sales Training
           </h1>
-          <p className="text-sm text-gray-400">
-            EcoMatic · B2B Sales Simulator · Hormozi Framework
+          <p className="text-sm text-gray-500 mt-2">
+            B2B Sales Simulator · Hormozi Framework
           </p>
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="bg-navy-surface rounded-xl p-6 space-y-4 border border-navy-surface"
-        >
-          <h2 className="text-lg font-semibold text-center">Sign In</h2>
+        {/* Login card */}
+        <div className="glass-card rounded-2xl p-6 shadow-card">
+          <h2 className="text-base font-semibold text-center text-gray-300 mb-5">
+            Sign in to your account
+          </h2>
 
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoFocus
-              className="w-full bg-navy border border-navy rounded px-3 py-2.5 text-sm outline-none focus:border-gold"
-              placeholder="you@synergylub.com"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs text-gray-400 mb-1">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full bg-navy border border-navy rounded px-3 py-2.5 text-sm outline-none focus:border-gold"
-              placeholder="••••••••"
-            />
-          </div>
-
-          {error && (
-            <div className="text-red-400 text-xs text-center bg-red-500/10 border border-red-500/20 rounded px-3 py-2">
-              {error}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wider">
+                Email
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoFocus
+                className="w-full bg-navy-surface/80 border border-navy-border rounded-xl px-4 py-3 text-sm outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 transition-all placeholder:text-gray-600"
+                placeholder="you@synergylub.com"
+              />
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-gold text-navy font-semibold py-2.5 rounded text-sm disabled:opacity-50 hover:bg-gold/90 transition"
-          >
-            {loading ? "Signing in..." : "Sign In"}
-          </button>
+            <div>
+              <label className="block text-xs font-medium text-gray-400 mb-1.5 uppercase tracking-wider">
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full bg-navy-surface/80 border border-navy-border rounded-xl px-4 py-3 text-sm outline-none focus:border-gold focus:ring-1 focus:ring-gold/30 transition-all placeholder:text-gray-600"
+                placeholder="••••••••••"
+              />
+            </div>
 
-          <p className="text-xs text-gray-500 text-center mt-2">
-            Synergy Lubricant & Chemical Co., Ltd.
-          </p>
-        </form>
+            {error && (
+              <div className="text-red-400 text-xs text-center bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2.5 animate-fade-in">
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-gradient-gold text-navy-DEFAULT font-bold py-3 rounded-xl text-sm disabled:opacity-50 hover:shadow-glow active:scale-[0.98] transition-all"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Signing in...
+                </span>
+              ) : "Sign In"}
+            </button>
+          </form>
+
+          <div className="mt-5 pt-4 border-t border-navy-border">
+            <p className="text-[11px] text-gray-600 text-center">
+              Synergy Lubricant & Chemical Co., Ltd.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

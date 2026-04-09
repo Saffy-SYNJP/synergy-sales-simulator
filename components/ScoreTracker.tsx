@@ -7,23 +7,23 @@ interface Props {
 
 export default function ScoreTracker({ score }: Props) {
   const pills = [
-    { label: "Objection Handled", on: score.objectionHandled },
-    { label: "Prospect Qualified", on: score.prospectQualified },
-    { label: "White-Label Pitched", on: score.whiteLabelPitched },
-    { label: "Visit Close Made", on: score.visitCloseMade },
+    { label: "Objection", on: score.objectionHandled },
+    { label: "Qualified", on: score.prospectQualified },
+    { label: "White-Label", on: score.whiteLabelPitched },
+    { label: "Visit Close", on: score.visitCloseMade },
   ];
   return (
-    <div className="flex gap-2 flex-wrap">
+    <div className="flex gap-1.5 flex-wrap">
       {pills.map((p) => (
         <div
           key={p.label}
-          className={`px-3 py-1.5 rounded-full text-xs font-medium transition border ${
+          className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all ${
             p.on
-              ? "bg-green-500/20 border-green-500 text-green-300"
-              : "bg-navy-surface border-navy-surface text-gray-500"
+              ? "bg-accent-green/15 border border-accent-green/40 text-accent-green"
+              : "bg-navy-card border border-navy-border text-gray-600"
           }`}
         >
-          {p.on ? "✅" : "⚪️"} {p.label}
+          {p.on ? "✅" : "○"} {p.label}
         </div>
       ))}
     </div>

@@ -9,23 +9,22 @@ interface Props {
 
 export default function MarketSelector({ value, onChange, markets }: Props) {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+    <div className="grid grid-cols-3 gap-2">
       {markets.map((m) => {
         const active = value === m.id;
         return (
           <button
             key={m.id}
             onClick={() => onChange(m.id)}
-            className="p-4 rounded-lg border-2 text-left transition"
-            style={{
-              borderColor: active ? "#C9A227" : "#1e304d",
-              background: active ? "#C9A22720" : "#1e304d",
-            }}
+            className={`relative p-3 rounded-xl border text-left transition-all active:scale-[0.97] ${
+              active
+                ? "border-gold bg-gold/10 shadow-glow-sm"
+                : "border-navy-border bg-navy-card hover:border-gray-600"
+            }`}
           >
-            <div className="text-3xl">{m.flag}</div>
-            <div className="font-semibold text-sm mt-2">{m.country}</div>
-            <div className="text-xs text-gray-400 mt-1">{m.personaName}</div>
-            <div className="text-xs text-gray-500">{m.role}</div>
+            <div className="text-2xl mb-1.5">{m.flag}</div>
+            <div className="font-semibold text-xs leading-tight">{m.country}</div>
+            <div className="text-[10px] text-gray-500 mt-0.5 truncate">{m.personaName}</div>
           </button>
         );
       })}

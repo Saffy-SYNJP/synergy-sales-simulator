@@ -22,147 +22,104 @@ interface Props {
 }
 
 function ScoreRing({ score }: { score: number }) {
-  const colour =
-    score >= 80
-      ? "text-green-400 border-green-400"
-      : score >= 60
-      ? "text-gold border-gold"
-      : "text-red-400 border-red-400";
+  const color = score >= 80 ? "text-accent-green" : score >= 60 ? "text-gold" : "text-accent-red";
+  const border = score >= 80 ? "border-accent-green/40" : score >= 60 ? "border-gold/40" : "border-accent-red/40";
+  const bg = score >= 80 ? "bg-accent-green/5" : score >= 60 ? "bg-gold/5" : "bg-accent-red/5";
   return (
-    <div
-      className={`w-24 h-24 rounded-full border-4 flex items-center justify-center ${colour} flex-shrink-0`}
-    >
-      <span className="text-3xl font-bold">{score}</span>
+    <div className={`w-20 h-20 rounded-2xl border-2 ${border} ${bg} flex flex-col items-center justify-center flex-shrink-0`}>
+      <span className={`text-2xl font-bold ${color}`}>{score}</span>
+      <span className="text-[10px] text-gray-500">/100</span>
     </div>
   );
 }
 
 const PILL_LABELS: Record<keyof SummaryData["pills"], string> = {
-  objectionHandled: "Objection Handled",
-  prospectQualified: "Prospect Qualified",
-  whiteLabelPitched: "White-Label Pitched",
-  visitCloseMade: "Visit Close Made",
+  objectionHandled: "Objection",
+  prospectQualified: "Qualified",
+  whiteLabelPitched: "White-Label",
+  visitCloseMade: "Visit Close",
 };
 
-const RATING_COLOUR: Record<string, string> = {
-  Excellent: "text-green-400",
-  Good: "text-blue-400",
-  "Needs Work": "text-yellow-400",
-  Missed: "text-red-400",
+const RATING_COLOR: Record<string, string> = {
+  Excellent: "text-accent-green bg-accent-green/10 border-accent-green/30",
+  Good: "text-accent-blue bg-accent-blue/10 border-accent-blue/30",
+  "Needs Work": "text-gold bg-gold/10 border-gold/30",
+  Missed: "text-accent-red bg-accent-red/10 border-accent-red/30",
 };
 
-export default function SessionSummary({
-  summary,
-  onPracticeAgain,
-  onNewSession,
-}: Props) {
+export default function SessionSummary({ summary, onPracticeAgain, onNewSession }: Props) {
   const pillKeys = Object.keys(summary.pills) as Array<keyof SummaryData["pills"]>;
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto p-4 space-y-4 bg-navy">
-      {/* Header + score */}
+    <div className="space-y-4 animate-fade-in">
+      {/* Score + Rating */}
       <div className="flex items-center gap-4">
         <ScoreRing score={summary.overallScore} />
-        <div>
-          <h2 className="text-xl font-bold text-gold">Session Complete</h2>
-          <p className="text-sm text-gray-400 mt-1">
-            Overall Performance Score
-          </p>
-        </div>
-      </div>
-
-      {/* Score pills */}
-      <div className="flex flex-wrap gap-2">
-        {pillKeys.map((k) => (
-          <div
-            key={k}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium border ${
-              summary.pills[k]
-                ? "bg-green-500/20 border-green-500 text-green-300"
-                : "bg-navy-surface border-navy-surface text-gray-500"
-            }`}
-          >
-            {summary.pills[k] ? "✅" : "⚪️"} {PILL_LABELS[k]}
-          </div>
-        ))}
-      </div>
-
-      {/* Objection handling */}
-      <div className="bg-navy-surface rounded-lg p-3 space-y-1">
-        <div className="flex items-center gap-2">
-          <span className="text-xs uppercase tracking-wider text-gray-400">
-            Objection Rating
-          </span>
-          <span
-            className={`text-sm font-bold ${
-              RATING_COLOUR[summary.objectionRating] ?? "text-gray-300"
-            }`}
-          >
-            {summary.objectionRating}
-          </span>
-        </div>
-        <p className="text-sm text-gray-300">{summary.objectionNotes}</p>
-      </div>
-
-      {/* Top 3 done well */}
-      <div className="space-y-1">
-        <h3 className="text-xs uppercase tracking-wider text-gray-400">
-          Top 3 — Done Well
-        </h3>
-        {summary.topThingsDoneWell.map((item, i) => (
-          <div
-            key={i}
-            className="flex gap-2 text-sm text-gray-200 bg-green-500/10 border border-green-500/20 rounded px-3 py-2"
-          >
-            <span className="text-green-400 font-bold flex-shrink-0">
-              {i + 1}.
+        <div className="min-w-0">
+          <h2 className="text-lg font-bold text-gradient-gold">Session Complete</h2>
+          <div className="flex items-center gap-2 mt-1.5">
+            <span className={`text-[11px] px-2 py-0.5 rounded-full border font-medium ${RATING_COLOR[summary.objectionRating] ?? "text-gray-400 bg-navy-card border-navy-border"}`}>
+              {summary.objectionRating}
             </span>
-            {item}
+          </div>
+          <p className="text-xs text-gray-500 mt-1 line-clamp-2">{summary.objectionNotes}</p>
+        </div>
+      </div>
+
+      {/* Pills */}
+      <div className="flex flex-wrap gap-1.5">
+        {pillKeys.map((k) => (
+          <div key={k} className={`px-2.5 py-1 rounded-full text-[11px] font-medium border ${
+            summary.pills[k] ? "bg-accent-green/10 border-accent-green/30 text-accent-green" : "bg-navy-card border-navy-border text-gray-600"
+          }`}>
+            {summary.pills[k] ? "✅" : "○"} {PILL_LABELS[k]}
           </div>
         ))}
       </div>
 
-      {/* Top 3 to improve */}
-      <div className="space-y-2">
-        <h3 className="text-xs uppercase tracking-wider text-gray-400">
-          Top 3 — Improve (with exact scripts)
-        </h3>
-        {summary.topThingsToImprove.map((item, i) => (
-          <div
-            key={i}
-            className="bg-red-500/10 border border-red-500/20 rounded px-3 py-2 space-y-1"
-          >
-            <div className="flex gap-2 text-sm text-gray-200">
-              <span className="text-red-400 font-bold flex-shrink-0">{i + 1}.</span>
-              {item.issue}
+      {/* Done Well */}
+      <div>
+        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Done Well</h3>
+        <div className="space-y-1.5">
+          {summary.topThingsDoneWell.map((item, i) => (
+            <div key={i} className="flex gap-2 text-sm text-gray-300 bg-accent-green/5 border border-accent-green/10 rounded-xl px-3 py-2">
+              <span className="text-accent-green font-bold flex-shrink-0">{i + 1}.</span>
+              <span>{item}</span>
             </div>
-            <div className="text-xs text-gold bg-gold/10 rounded px-2 py-1 border border-gold/30">
-              💬 Say instead: &ldquo;{item.script}&rdquo;
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
-      {/* Recommended next session */}
-      <div className="bg-navy-surface rounded-lg p-3 space-y-1">
-        <h3 className="text-xs uppercase tracking-wider text-gray-400">
-          Recommended Next Session
-        </h3>
-        <p className="text-sm text-gray-200">{summary.recommendedNextSession}</p>
+      {/* To Improve */}
+      <div>
+        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Improve</h3>
+        <div className="space-y-2">
+          {summary.topThingsToImprove.map((item, i) => (
+            <div key={i} className="bg-accent-red/5 border border-accent-red/10 rounded-xl px-3 py-2.5 space-y-1.5">
+              <div className="flex gap-2 text-sm text-gray-300">
+                <span className="text-accent-red font-bold flex-shrink-0">{i + 1}.</span>
+                <span>{item.issue}</span>
+              </div>
+              <div className="text-xs text-gold bg-gold/5 rounded-lg px-2.5 py-1.5 border border-gold/15">
+                💬 &ldquo;{item.script}&rdquo;
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Next Session */}
+      <div className="glass-card rounded-xl p-3">
+        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Next Session</h3>
+        <p className="text-sm text-gray-300">{summary.recommendedNextSession}</p>
       </div>
 
       {/* Action buttons */}
-      <div className="flex gap-3 pt-2">
-        <button
-          onClick={onPracticeAgain}
-          className="flex-1 py-3 rounded bg-navy-surface border border-navy-surface text-gray-200 text-sm font-semibold hover:border-gold hover:text-gold transition"
-        >
-          🔁 Practice Same Scenario
+      <div className="flex gap-2 pt-1">
+        <button onClick={onPracticeAgain} className="flex-1 py-3 rounded-xl border border-navy-border bg-navy-card text-gray-300 text-sm font-semibold hover:border-gold/40 hover:text-gold transition-all active:scale-[0.98]">
+          🔁 Same Scenario
         </button>
-        <button
-          onClick={onNewSession}
-          className="flex-1 py-3 rounded bg-gold text-navy text-sm font-semibold hover:bg-gold/90 transition"
-        >
+        <button onClick={onNewSession} className="flex-1 py-3 rounded-xl bg-gradient-gold text-navy-DEFAULT text-sm font-bold hover:shadow-glow active:scale-[0.98] transition-all">
           ✨ New Session
         </button>
       </div>
