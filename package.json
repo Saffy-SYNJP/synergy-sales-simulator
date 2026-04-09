@@ -9,10 +9,12 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@11labs/react": "^0.2.0",
     "@ai-sdk/anthropic": "^1.2.12",
     "@ai-sdk/react": "^1.2.12",
     "@anthropic-ai/sdk": "^0.27.0",
     "@deepgram/sdk": "^3.9.0",
+    "@elevenlabs/client": "^1.1.2",
     "ai": "^4.3.19",
     "next": "14.2.15",
     "react": "^18.3.1",

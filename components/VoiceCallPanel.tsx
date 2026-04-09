@@ -1,8 +1,9 @@
 "use client";
-import { useCallback, useEffect, useRef } from "react";
-import { CallPhase } from "@/hooks/useVoiceCall";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useConversation } from "@11labs/react";
 import { Mode } from "@/lib/prompts";
-import { Market } from "@/lib/markets";
+import { Market, MarketId } from "@/lib/markets";
+import { getConvaiOverrides } from "@/lib/convai";
 
 interface TranscriptLine {
   role: "user" | "assistant";
@@ -12,16 +13,8 @@ interface TranscriptLine {
 interface Props {
   mode: Mode;
   market?: Market;
-  phase: CallPhase;
-  callDuration: number;
-  audioLevel: number;
-  liveTranscript: string;
-  transcript: TranscriptLine[];
-  voiceError?: string | null;
-  onStartListening: () => void;
-  onStopListening: () => void;
-  onInterrupt: () => void;
-  onEndCall: () => void;
+  marketId: MarketId | null;
+  onEndCall: (transcript: TranscriptLine[], duration: number) => void;
 }
 
 function formatTime(seconds: number): string {
@@ -30,104 +23,152 @@ function formatTime(seconds: number): string {
   return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
 
-function PhaseRing({ phase, audioLevel }: { phase: CallPhase; audioLevel: number }) {
-  const scale = phase === "listening" ? 1 + audioLevel * 0.3 : 1;
-  const colors: Record<CallPhase, string> = {
-    idle: "border-gray-600",
-    listening: "border-accent-green",
-    processing: "border-gold",
-    ai_speaking: "border-accent-blue",
-  };
+export default function VoiceCallPanel({ mode, market, marketId, onEndCall }: Props) {
+  const [callDuration, setCallDuration] = useState(0);
+  const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [connecting, setConnecting] = useState(true);
 
-  return (
-    <div className="relative w-28 h-28 sm:w-36 sm:h-36">
-      {/* Outer pulse ring */}
-      {(phase === "listening" || phase === "ai_speaking") && (
-        <div
-          className={`absolute inset-0 rounded-full border-2 ${colors[phase]} animate-ping opacity-20`}
-        />
-      )}
-      {/* Main ring */}
-      <div
-        className={`absolute inset-0 rounded-full border-3 ${colors[phase]} transition-all duration-150`}
-        style={{ transform: `scale(${scale})` }}
-      />
-      {/* Inner avatar area */}
-      <div className="absolute inset-2 rounded-full bg-navy-card flex items-center justify-center">
-        <span className="text-4xl sm:text-5xl">
-          {phase === "listening" ? "🎤" : phase === "ai_speaking" ? "🔊" : phase === "processing" ? "⏳" : "📞"}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function WaveformBars({ level, active }: { level: number; active: boolean }) {
-  return (
-    <div className="flex items-center justify-center gap-1 h-8">
-      {Array.from({ length: 12 }).map((_, i) => {
-        const barLevel = active ? Math.max(0.1, level * (0.5 + 0.5 * Math.sin(Date.now() / 120 + i * 0.8))) : 0.08;
-        return (
-          <div
-            key={i}
-            className={`w-1 rounded-full transition-all duration-100 ${
-              active ? "bg-gold" : "bg-gray-700"
-            }`}
-            style={{ height: `${Math.max(3, barLevel * 32)}px` }}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
-export default function VoiceCallPanel({
-  mode,
-  market,
-  phase,
-  callDuration,
-  audioLevel,
-  liveTranscript,
-  transcript,
-  voiceError,
-  onStartListening,
-  onStopListening,
-  onInterrupt,
-  onEndCall,
-}: Props) {
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
+  const transcriptRef = useRef<TranscriptLine[]>([]);
+  const callStartRef = useRef(Date.now());
 
+  const conversation = useConversation({
+    onConnect: () => {
+      setConnecting(false);
+      setError(null);
+    },
+    onDisconnect: () => {
+      const duration = Math.round((Date.now() - callStartRef.current) / 1000);
+      // Use ref to get latest transcript since state may be stale in closure
+      onEndCall(transcriptRef.current, duration);
+    },
+    onError: (message: string) => {
+      console.error("[ConvAI] error:", message);
+      setError(message || "Connection error");
+      setConnecting(false);
+    },
+    onMessage: (props: { message: string; source: "user" | "ai" }) => {
+      if (!props.message?.trim()) return;
+      const role = props.source === "user" ? "user" as const : "assistant" as const;
+      setTranscript((prev) => {
+        const next = [...prev, { role, text: props.message }];
+        transcriptRef.current = next;
+        return next;
+      });
+    },
+  });
+
+  // Start connection on mount
+  useEffect(() => {
+    let cancelled = false;
+
+    async function connect() {
+      if (!marketId) {
+        setError("No market selected");
+        setConnecting(false);
+        return;
+      }
+
+      try {
+        // Get signed URL from our server
+        const res = await fetch("/api/convai");
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error((data as { error?: string }).error || `HTTP ${res.status}`);
+        }
+        const { signedUrl } = (await res.json()) as { signedUrl: string };
+
+        if (cancelled) return;
+
+        // Build overrides for this market/mode
+        const overrides = getConvaiOverrides(mode, marketId);
+
+        await conversation.startSession({
+          signedUrl,
+          overrides: {
+            agent: {
+              prompt: { prompt: overrides.prompt },
+              firstMessage: overrides.firstMessage,
+              language: "en",
+            },
+            tts: {
+              voiceId: overrides.voiceId,
+            },
+          },
+        });
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to connect");
+          setConnecting(false);
+        }
+      }
+    }
+
+    connect();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Call timer
+  useEffect(() => {
+    callStartRef.current = Date.now();
+    timerRef.current = setInterval(() => setCallDuration((d) => d + 1), 1000);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  // Auto-scroll transcript
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [transcript, liveTranscript]);
+  }, [transcript]);
+
+  const handleEndCall = useCallback(async () => {
+    try {
+      await conversation.endSession();
+    } catch {
+      // If endSession fails, still fire the callback
+      const duration = Math.round((Date.now() - callStartRef.current) / 1000);
+      onEndCall(transcript, duration);
+    }
+  }, [conversation, onEndCall, transcript]);
 
   const personaName = market?.personaName ?? (mode === "coach" ? "Sales Coach" : "AI Representative");
   const personaDetail = market ? `${market.role} · ${market.city}` : mode === "coach" ? "Hormozi-Style Coach" : "Synergy Lubricant";
 
-  const phaseLabel: Record<CallPhase, string> = {
-    idle: "Call connected",
-    listening: "Listening...",
-    processing: "Thinking...",
-    ai_speaking: `${personaName} is speaking`,
-  };
+  const isSpeaking = conversation.isSpeaking;
+  const status = conversation.status;
 
-  const handleMicAction = useCallback(() => {
-    if (phase === "listening") {
-      onStopListening();
-    } else if (phase === "ai_speaking") {
-      onInterrupt();
-    } else {
-      onStartListening();
-    }
-  }, [phase, onStartListening, onStopListening, onInterrupt]);
+  let phaseLabel = "Call connected";
+  let phaseColor = "text-gray-400";
+  let ringColor = "border-gray-600";
+
+  if (connecting) {
+    phaseLabel = "Connecting...";
+    phaseColor = "text-gold";
+    ringColor = "border-gold";
+  } else if (isSpeaking) {
+    phaseLabel = `${personaName} is speaking`;
+    phaseColor = "text-accent-blue";
+    ringColor = "border-accent-blue";
+  } else if (status === "connected") {
+    phaseLabel = "Listening...";
+    phaseColor = "text-accent-green";
+    ringColor = "border-accent-green";
+  }
 
   return (
     <div className="absolute inset-0 z-50 flex flex-col bg-navy-DEFAULT/98 backdrop-blur-xl animate-fade-in">
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-navy-border/30">
         <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-accent-green animate-pulse" />
-          <span className="text-xs text-gray-400">Live Call</span>
+          <div className={`w-2 h-2 rounded-full ${status === "connected" ? "bg-accent-green animate-pulse" : connecting ? "bg-gold animate-pulse" : "bg-gray-600"}`} />
+          <span className="text-xs text-gray-400">{status === "connected" ? "Live Call" : connecting ? "Connecting" : "Disconnected"}</span>
         </div>
         <span className="text-sm font-mono text-gold tabular-nums">{formatTime(callDuration)}</span>
         <span className="text-xs text-gray-500">
@@ -145,26 +186,25 @@ export default function VoiceCallPanel({
         </div>
 
         {/* Phase ring */}
-        <PhaseRing phase={phase} audioLevel={audioLevel} />
+        <div className="relative w-28 h-28 sm:w-36 sm:h-36">
+          {(isSpeaking || (status === "connected" && !isSpeaking)) && (
+            <div className={`absolute inset-0 rounded-full border-2 ${ringColor} animate-ping opacity-20`} />
+          )}
+          <div className={`absolute inset-0 rounded-full border-3 ${ringColor} transition-all duration-300`} />
+          <div className="absolute inset-2 rounded-full bg-navy-card flex items-center justify-center">
+            <span className="text-4xl sm:text-5xl">
+              {connecting ? "⏳" : isSpeaking ? "🔊" : status === "connected" ? "🎤" : "📞"}
+            </span>
+          </div>
+        </div>
 
         {/* Status */}
-        <div className="text-sm text-gray-400 font-medium">{phaseLabel[phase]}</div>
+        <div className={`text-sm font-medium ${phaseColor}`}>{phaseLabel}</div>
 
-        {/* Waveform */}
-        <WaveformBars level={audioLevel} active={phase === "listening"} />
-
-        {/* Voice error */}
-        {voiceError && (
+        {/* Error */}
+        {error && (
           <div className="max-w-sm text-center px-4 py-2 rounded-xl bg-accent-red/10 border border-accent-red/30">
-            <span className="text-xs text-red-300">{voiceError}</span>
-          </div>
-        )}
-
-        {/* Live transcript preview */}
-        {liveTranscript && (
-          <div className="max-w-sm text-center px-4 py-2 rounded-xl bg-navy-card/80 border border-navy-border/50">
-            <span className="text-xs text-gray-500 block mb-1">You&apos;re saying:</span>
-            <span className="text-sm text-gray-200 italic">{liveTranscript}</span>
+            <span className="text-xs text-red-300">{error}</span>
           </div>
         )}
       </div>
@@ -172,9 +212,9 @@ export default function VoiceCallPanel({
       {/* Transcript feed */}
       <div className="max-h-[25vh] overflow-y-auto px-4 py-2 border-t border-navy-border/30">
         <div className="max-w-lg mx-auto space-y-2">
-          {transcript.length === 0 && (
+          {transcript.length === 0 && !connecting && (
             <div className="text-center text-xs text-gray-600 py-2">
-              Tap the mic to start speaking
+              Just speak naturally — the AI will respond
             </div>
           )}
           {transcript.map((line, i) => (
@@ -187,7 +227,7 @@ export default function VoiceCallPanel({
                 <span className="font-semibold text-[10px] block mb-0.5 opacity-60">
                   {line.role === "user" ? "You" : personaName}
                 </span>
-                {line.text.length > 120 ? line.text.slice(0, 120) + "..." : line.text}
+                {line.text.length > 150 ? line.text.slice(0, 150) + "..." : line.text}
               </span>
             </div>
           ))}
@@ -198,35 +238,25 @@ export default function VoiceCallPanel({
       {/* Call controls */}
       <div className="px-4 py-5 sm:py-6 border-t border-navy-border/30 safe-bottom">
         <div className="flex items-center justify-center gap-6">
-          {/* Mic / Interrupt button */}
+          {/* Mute toggle */}
           <button
-            onClick={handleMicAction}
-            className={`relative w-16 h-16 rounded-full flex items-center justify-center text-xl transition-all active:scale-90 ${
-              phase === "listening"
-                ? "bg-accent-green text-white shadow-[0_0_20px_rgba(16,185,129,0.3)] animate-pulse-gold"
-                : phase === "ai_speaking"
-                ? "bg-navy-card border-2 border-accent-blue text-accent-blue hover:bg-accent-blue/10"
-                : "bg-gradient-gold text-navy-DEFAULT shadow-glow-sm hover:shadow-glow"
-            }`}
+            onClick={() => conversation.setVolume({ volume: isSpeaking ? 0 : 1 })}
+            className="w-14 h-14 rounded-full bg-navy-card border-2 border-navy-border text-lg flex items-center justify-center hover:border-gray-500 active:scale-90 transition-all"
           >
-            {phase === "listening" ? "🎤" : phase === "ai_speaking" ? "✋" : "🎤"}
+            {isSpeaking ? "🔇" : "🔊"}
           </button>
 
           {/* End call */}
           <button
-            onClick={onEndCall}
+            onClick={handleEndCall}
             className="w-16 h-16 rounded-full bg-accent-red flex items-center justify-center text-xl text-white hover:bg-red-600 active:scale-90 transition-all shadow-[0_0_20px_rgba(239,68,68,0.2)]"
           >
             📞
           </button>
         </div>
 
-        {/* Hint text */}
         <div className="text-center text-[10px] text-gray-600 mt-3">
-          {phase === "listening" && "Speaking... tap mic to stop"}
-          {phase === "ai_speaking" && "Tap ✋ to interrupt"}
-          {phase === "idle" && "Tap mic to speak"}
-          {phase === "processing" && "AI is preparing a response..."}
+          {connecting ? "Setting up WebRTC connection..." : "Speak naturally — AI handles turn detection"}
         </div>
       </div>
     </div>

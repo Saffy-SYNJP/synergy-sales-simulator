@@ -14,7 +14,6 @@ import SessionSummary, { SummaryData } from "./SessionSummary";
 import PointsBreakdownPanel from "./PointsBreakdownPanel";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { useVoicePlayback } from "@/hooks/useVoicePlayback";
-import { useVoiceCall } from "@/hooks/useVoiceCall";
 import { VoiceRole } from "@/lib/voices";
 import { recordSession, PointsBreakdown } from "@/lib/gamification";
 import { BadgeId, addCallLog } from "@/lib/store";
@@ -83,35 +82,66 @@ export default function ChatPanel({ mode, marketId, objection, userEmail, userNa
     language: marketId === "vietnam" ? "vi-VN" : marketId === "philippines" ? "fil-PH" : "en-US",
   });
 
-  // Voice call mode
-  const latestAssistant = useMemo(() => {
-    const a = [...messages].reverse().find((m) => m.role === "assistant");
-    return a ?? null;
-  }, [messages]);
-
-  const voiceCall = useVoiceCall({
-    language: marketId === "vietnam" ? "vi-VN" : marketId === "philippines" ? "fil-PH" : "en-US",
-    voiceRole,
-    onUserMessage: (text) => { append({ role: "user", content: text }); },
-    aiLoading: isLoading,
-    latestAssistantText: latestAssistant?.content as string ?? null,
-    latestAssistantId: latestAssistant?.id ?? null,
-    active: voiceCallActive,
-  });
-
-  const callTranscript = useMemo(() =>
-    messages.map((m) => ({
-      role: m.role as "user" | "assistant",
-      text: (m.content as string).replace(/\[[^\]]+\]/g, "").replace(/💡 TIP:[^\n]*/g, "").trim(),
-    })),
-    [messages]
-  );
-
   const handleStartCall = useCallback(() => {
     sessionStartRef.current = Date.now();
     setVoiceCallActive(true);
     setVoiceMode(true);
   }, []);
+
+  // Called when ElevenLabs ConvAI call ends — save call log directly
+  const handleVoiceCallEnd = useCallback((callTranscript: Array<{ role: "user" | "assistant"; text: string }>, duration: number) => {
+    setVoiceCallActive(false);
+    const personaName = market?.personaName ?? (mode === "coach" ? "Sales Coach" : "AI Rep");
+
+    // Save call log
+    addCallLog({
+      id: `call_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      email: userEmail,
+      timestamp: sessionStartRef.current,
+      duration,
+      mode,
+      market: marketId || "coach",
+      personaName,
+      score: null,
+      transcript: callTranscript,
+      voiceCall: true,
+    });
+
+    // Show summary view if there was conversation
+    if (callTranscript.length >= 2) {
+      setSessionEnded(true);
+      setSummaryLoading(true);
+      setSummaryError(null);
+      setSummary(null);
+      setPointsResult(null);
+
+      // Build fake messages for the summary API
+      const msgs = callTranscript.map((t) => ({ role: t.role, content: t.text }));
+      fetch("/api/summary", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: msgs }),
+      })
+        .then(async (res) => {
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
+          }
+          return res.json() as Promise<SummaryData>;
+        })
+        .then((data) => {
+          setSummary(data);
+          const objStr = objection.kind === "specific" ? `objection_${objection.id}` : objection.kind === "category" ? objection.category : objection.kind === "random" ? "random" : "free";
+          const result = recordSession(userEmail, userName, mode, marketId || "coach", objStr, data, true);
+          setPointsResult({ breakdown: result.points, newBadges: result.newBadges });
+          if (onSessionEnd) onSessionEnd({ leveledUp: result.leveledUp, newLevel: result.newLevel });
+        })
+        .catch((err) => {
+          setSummaryError(err instanceof Error ? err.message : "Unknown error");
+        })
+        .finally(() => setSummaryLoading(false));
+    }
+  }, [market, mode, marketId, userEmail, userName, objection, onSessionEnd]);
 
   useEffect(() => {
     scrollAnchorRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -204,13 +234,6 @@ export default function ChatPanel({ mode, marketId, objection, userEmail, userNa
     finally { setSummaryLoading(false); }
   }, [messages, userEmail, userName, mode, marketId, market, objection, voiceMode, voiceCallActive, onSessionEnd]);
 
-  const handleEndCall = useCallback(() => {
-    setVoiceCallActive(false);
-    if (messages.length >= 2) {
-      handleEndSession();
-    }
-  }, [messages.length, handleEndSession]);
-
   const handlePracticeAgain = useCallback(() => {
     setSessionEnded(false); setVoiceCallActive(false); setSummary(null); setSummaryError(null); setPointsResult(null); setScore(EMPTY_SCORE); setMessages([]); setInput("");
   }, [setMessages, setInput]);
@@ -225,21 +248,13 @@ export default function ChatPanel({ mode, marketId, objection, userEmail, userNa
 
   return (
     <div className="relative flex flex-col h-full glass-card rounded-2xl overflow-hidden">
-      {/* Voice Call Overlay */}
+      {/* Voice Call Overlay — ElevenLabs Conversational AI */}
       {voiceCallActive && (
         <VoiceCallPanel
           mode={mode}
           market={market}
-          phase={voiceCall.phase}
-          callDuration={voiceCall.callDuration}
-          audioLevel={voiceCall.audioLevel}
-          liveTranscript={voiceCall.liveTranscript}
-          transcript={callTranscript}
-          voiceError={voiceCall.voiceError}
-          onStartListening={voiceCall.startListening}
-          onStopListening={voiceCall.stopListening}
-          onInterrupt={voiceCall.interrupt}
-          onEndCall={handleEndCall}
+          marketId={marketId}
+          onEndCall={handleVoiceCallEnd}
         />
       )}
 
