@@ -77,52 +77,34 @@ function VoiceCallInner({ mode, market, marketId, onEndCall }: Props) {
     if (connectCalledRef.current) return;
     connectCalledRef.current = true;
 
-    let cancelled = false;
-
-    async function connect() {
-      if (!marketId) {
-        setError("No market selected");
-        setConnecting(false);
-        return;
-      }
-
-      try {
-        const res = await fetch("/api/convai");
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error((data as { error?: string }).error || `HTTP ${res.status}`);
-        }
-        const { signedUrl } = (await res.json()) as { signedUrl: string };
-
-        if (cancelled) return;
-
-        const overrides = getConvaiOverrides(mode, marketId);
-
-        conversation.startSession({
-          signedUrl,
-          overrides: {
-            agent: {
-              prompt: { prompt: overrides.prompt },
-              firstMessage: overrides.firstMessage,
-              language: "en",
-            },
-            tts: {
-              voiceId: overrides.voiceId,
-            },
-          },
-        });
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to connect");
-          setConnecting(false);
-        }
-      }
+    if (!marketId) {
+      setError("No market selected");
+      setConnecting(false);
+      return;
     }
 
-    connect();
+    const overrides = getConvaiOverrides(mode, marketId);
+
+    try {
+      conversation.startSession({
+        agentId: "agent_8301kns5e43zf9cax37tjgrkh3r7",
+        overrides: {
+          agent: {
+            prompt: { prompt: overrides.prompt },
+            firstMessage: overrides.firstMessage,
+            language: "en",
+          },
+          tts: {
+            voiceId: overrides.voiceId,
+          },
+        },
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to connect");
+      setConnecting(false);
+    }
+
     return () => {
-      cancelled = true;
-      // Clean up WebSocket on unmount
       try { conversation.endSession(); } catch { /* ignore */ }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
