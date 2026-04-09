@@ -10,17 +10,23 @@ import ScoreTracker from "./ScoreTracker";
 import QuickActions from "./QuickActions";
 import VoiceStatusBar from "./VoiceStatusBar";
 import SessionSummary, { SummaryData } from "./SessionSummary";
+import PointsBreakdownPanel from "./PointsBreakdownPanel";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { useVoicePlayback } from "@/hooks/useVoicePlayback";
 import { VoiceRole } from "@/lib/voices";
+import { recordSession, PointsBreakdown } from "@/lib/gamification";
+import { BadgeId } from "@/lib/store";
 
 interface Props {
   mode: Mode;
   marketId: MarketId | null;
   objection: ObjectionSelection;
+  userEmail: string;
+  userName: string;
+  onSessionEnd?: (result: { leveledUp: boolean; newLevel: number }) => void;
 }
 
-export default function ChatPanel({ mode, marketId, objection }: Props) {
+export default function ChatPanel({ mode, marketId, objection, userEmail, userName, onSessionEnd }: Props) {
   const voiceEnabled = process.env.NEXT_PUBLIC_VOICE_ENABLED === "true";
   const [voiceMode, setVoiceMode] = useState(false);
   const [score, setScore] = useState(EMPTY_SCORE);
@@ -29,6 +35,7 @@ export default function ChatPanel({ mode, marketId, objection }: Props) {
   const [summary, setSummary] = useState<SummaryData | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [pointsResult, setPointsResult] = useState<{ breakdown: PointsBreakdown; newBadges: BadgeId[] } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastSpokenIdRef = useRef<string | null>(null);
 
@@ -87,7 +94,7 @@ export default function ChatPanel({ mode, marketId, objection }: Props) {
         : "en-US",
   });
 
-  // Auto-scroll with requestAnimationFrame to avoid layout blocking
+  // Auto-scroll
   useEffect(() => {
     requestAnimationFrame(() => {
       if (scrollRef.current) {
@@ -128,7 +135,7 @@ export default function ChatPanel({ mode, marketId, objection }: Props) {
     if (spoken) playback.play(spoken, voiceRole);
   }, [messages, isLoading, voiceMode, voiceEnabled, voiceRole, playback]);
 
-  // Interruption: user starts speaking while AI is playing → stop playback
+  // Interruption
   useEffect(() => {
     if (voice.status === "recording" && playback.speaking) {
       playback.stop();
@@ -153,6 +160,7 @@ export default function ChatPanel({ mode, marketId, objection }: Props) {
     setSummaryLoading(true);
     setSummaryError(null);
     setSummary(null);
+    setPointsResult(null);
 
     try {
       const res = await fetch("/api/summary", {
@@ -166,18 +174,41 @@ export default function ChatPanel({ mode, marketId, objection }: Props) {
       }
       const data = await res.json() as SummaryData;
       setSummary(data);
+
+      // Record session and calculate gamification
+      const objStr = objection.kind === "specific"
+        ? `objection_${objection.id}`
+        : objection.kind === "category"
+        ? objection.category
+        : objection.kind === "random" ? "random" : "free";
+
+      const result = recordSession(
+        userEmail,
+        userName,
+        mode,
+        marketId || "coach",
+        objStr,
+        data,
+        voiceMode
+      );
+      setPointsResult({ breakdown: result.points, newBadges: result.newBadges });
+
+      if (onSessionEnd) {
+        onSessionEnd({ leveledUp: result.leveledUp, newLevel: result.newLevel });
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error";
       setSummaryError(msg);
     } finally {
       setSummaryLoading(false);
     }
-  }, [messages]);
+  }, [messages, userEmail, userName, mode, marketId, objection, voiceMode, onSessionEnd]);
 
   const handlePracticeAgain = useCallback(() => {
     setSessionEnded(false);
     setSummary(null);
     setSummaryError(null);
+    setPointsResult(null);
     setScore(EMPTY_SCORE);
     setMessages([]);
     setInput("");
@@ -185,7 +216,6 @@ export default function ChatPanel({ mode, marketId, objection }: Props) {
 
   const handleNewSession = useCallback(() => {
     handlePracticeAgain();
-    // Page-level reset is handled by parent via prop changes — here we just reset local state
   }, [handlePracticeAgain]);
 
   return (
@@ -221,7 +251,7 @@ export default function ChatPanel({ mode, marketId, objection }: Props) {
         </div>
       </div>
 
-      {/* Score tracker — prospect only, not during summary */}
+      {/* Score tracker */}
       {mode === "prospect" && !sessionEnded && (
         <div className="px-4 py-2 border-b border-navy-surface flex-shrink-0">
           <ScoreTracker score={score} />
@@ -230,13 +260,13 @@ export default function ChatPanel({ mode, marketId, objection }: Props) {
 
       {/* Summary screen */}
       {sessionEnded && (
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-y-auto">
           {summaryLoading && (
             <div className="flex items-center justify-center h-full text-gray-400 gap-2">
               <span className="typing-dot" />
               <span className="typing-dot" style={{ animationDelay: "0.15s" }} />
               <span className="typing-dot" style={{ animationDelay: "0.30s" }} />
-              <span className="ml-2 text-sm">Generating your coaching report…</span>
+              <span className="ml-2 text-sm">Generating your coaching report...</span>
             </div>
           )}
           {summaryError && (
@@ -254,16 +284,24 @@ export default function ChatPanel({ mode, marketId, objection }: Props) {
             </div>
           )}
           {summary && (
-            <SessionSummary
-              summary={summary}
-              onPracticeAgain={handlePracticeAgain}
-              onNewSession={handleNewSession}
-            />
+            <div className="p-4 space-y-4">
+              <SessionSummary
+                summary={summary}
+                onPracticeAgain={handlePracticeAgain}
+                onNewSession={handleNewSession}
+              />
+              {pointsResult && (
+                <PointsBreakdownPanel
+                  breakdown={pointsResult.breakdown}
+                  newBadges={pointsResult.newBadges}
+                />
+              )}
+            </div>
           )}
         </div>
       )}
 
-      {/* Messages — hidden during summary */}
+      {/* Messages */}
       {!sessionEnded && (
         <>
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -274,12 +312,9 @@ export default function ChatPanel({ mode, marketId, objection }: Props) {
             )}
             {!needsMarket && messages.length === 0 && (
               <div className="text-center text-gray-500 text-sm py-12">
-                {mode === "prospect" &&
-                  "Open the call — introduce yourself and Synergy."}
-                {mode === "demo" &&
-                  "Throw an objection below and watch the AI handle it."}
-                {mode === "coach" &&
-                  "Describe your call situation or paste a transcript for coaching."}
+                {mode === "prospect" && "Open the call — introduce yourself and Synergy."}
+                {mode === "demo" && "Throw an objection below and watch the AI handle it."}
+                {mode === "coach" && "Describe your call situation or paste a transcript for coaching."}
               </div>
             )}
             {messages.map((m) => (

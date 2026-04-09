@@ -8,7 +8,7 @@ export const VOICE_CONFIG = {
   Philippines: process.env.ELEVENLABS_VOICE_PHILIPPINES || "",
   Vietnam: process.env.ELEVENLABS_VOICE_VIETNAM || "",
   Myanmar: process.env.ELEVENLABS_VOICE_MYANMAR || "",
-  Cambodia: process.env.ELEVENLABS_VOICE_CAMBODIA || "",
+  India: process.env.ELEVENLABS_VOICE_INDIA || "",
   AIRep: process.env.ELEVENLABS_VOICE_AI_REP || "",
   Coach: process.env.ELEVENLABS_VOICE_COACH || "",
 } as const;

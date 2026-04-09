@@ -71,13 +71,19 @@ export async function POST(req: Request) {
     system = `${system}\n\n${buildMidCallCoachingPrompt()}`;
   }
 
+  // Anthropic requires the conversation to end with a user message.
+  let safeMessages = [...messages];
+  if (safeMessages.length > 0 && safeMessages[safeMessages.length - 1].role === "assistant") {
+    safeMessages.push({ role: "user", content: "(continue)" });
+  }
+
   const anthropic = createAnthropic({ apiKey });
 
   try {
     const result = await streamText({
       model: anthropic(modelId),
       system,
-      messages,
+      messages: safeMessages,
       temperature: 0.8,
       maxTokens: 1024,
     });

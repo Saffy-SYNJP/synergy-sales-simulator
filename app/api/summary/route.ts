@@ -9,19 +9,16 @@ interface SummaryBody {
   messages: CoreMessage[];
 }
 
-const MODEL_ID = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
-
 export async function POST(req: Request) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return new Response(
-      JSON.stringify({
-        error:
-          "ANTHROPIC_API_KEY is not set. Create .env.local from .env.local.example and restart the dev server.",
-      }),
+      JSON.stringify({ error: "ANTHROPIC_API_KEY is not configured" }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
+
+  const modelId = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
 
   let body: SummaryBody;
   try {
@@ -42,18 +39,28 @@ export async function POST(req: Request) {
     );
   }
 
+  // Anthropic requires the conversation to end with a user message.
+  // The chat transcript typically ends with an assistant reply, so we
+  // append a user message requesting the summary analysis.
+  let safeMessages = [...messages];
+  if (safeMessages[safeMessages.length - 1].role === "assistant") {
+    safeMessages.push({
+      role: "user",
+      content: "Please analyze the full conversation above and provide the coaching summary now.",
+    });
+  }
+
   const anthropic = createAnthropic({ apiKey });
 
   try {
     const { text } = await generateText({
-      model: anthropic(MODEL_ID),
+      model: anthropic(modelId),
       system: buildSummaryPrompt(),
-      messages,
+      messages: safeMessages,
       maxTokens: 1024,
       temperature: 0.3,
     });
 
-    // Parse JSON from response — Claude may wrap it in code fences
     const cleaned = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
     let summary: unknown;
     try {

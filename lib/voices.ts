@@ -15,7 +15,7 @@ export function getVoiceIdForRole(role: VoiceRole): string | undefined {
     philippines: process.env.ELEVENLABS_VOICE_PHILIPPINES,
     vietnam: process.env.ELEVENLABS_VOICE_VIETNAM,
     myanmar: process.env.ELEVENLABS_VOICE_MYANMAR,
-    cambodia: process.env.ELEVENLABS_VOICE_CAMBODIA,
+    india: process.env.ELEVENLABS_VOICE_INDIA,
     ai_rep: process.env.ELEVENLABS_VOICE_AI_REP,
     coach: process.env.ELEVENLABS_VOICE_COACH,
   };

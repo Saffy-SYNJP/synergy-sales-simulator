@@ -1,4 +1,4 @@
-export type MarketId = "philippines" | "vietnam" | "myanmar" | "cambodia";
+export type MarketId = "philippines" | "vietnam" | "myanmar" | "india";
 
 export interface Market {
   id: MarketId;
@@ -61,21 +61,32 @@ export const MARKETS: Record<MarketId, Market> = {
     additionalRules: "Naturally raise concerns about import licensing and documentation for Myanmar. Mention that the current situation makes supply chain reliability critical.",
     voiceEnvKey: "ELEVENLABS_VOICE_MYANMAR",
   },
-  cambodia: {
-    id: "cambodia",
-    flag: "🇰🇭",
-    country: "Cambodia",
-    personaName: "Sopheak Lim",
-    role: "Importer & Trading Company Owner",
-    city: "Phnom Penh",
-    language: "English + romanized Khmer",
+  india: {
+    id: "india",
+    flag: "🇮🇳",
+    country: "India",
+    personaName: "Raj Patel",
+    role: "Auto Parts Distributor",
+    city: "Mumbai",
+    language: "English with Indian business style",
     languageStyle:
-      "Mix English and romanized Khmer. Use: \"Baat\" (yes), \"Min yul te\" (not sure), \"Tlai nas\" (too expensive), \"Som kit\" (let me think), \"Jaa\" (okay). More Khmer when negotiating. ALWAYS [translate] Khmer phrases in brackets.",
-    tone: "Entrepreneurial and open to new products. Price-driven but understands value. Wants territory exclusivity for Cambodia. Pushes hard on MOQ and payment terms. Friendly but tough.",
-    specificPhrases: "Baat (yes), Min yul te (not sure), Tlai nas (too expensive), Som kit (let me think), Jaa (okay)",
-    additionalRules: "Raise exclusivity demand naturally — Sopheak wants exclusive distribution rights for Cambodia before committing to a big order.",
-    voiceEnvKey: "ELEVENLABS_VOICE_CAMBODIA",
+      "Professional English with Indian business idioms. Use phrases like: \"See, the thing is...\", \"What is the bottom line?\", \"Kindly share\", \"Actually, we are looking for...\", \"No no, that won't work\". Occasionally use Hindi business phrases like \"Sahi hai\" [That's right], \"Theek hai\" [Okay], \"Dekho\" [Look/See]. ALWAYS put [English translation] in brackets after Hindi phrases.",
+    tone: "Sharp negotiator. Highly analytical, wants numbers and margins. Runs a large multi-brand operation in Mumbai. Direct, fast-paced, respects confidence and data. Always comparing margins per litre.",
+    specificPhrases: "Sahi hai [That's right], Theek hai [Okay], Dekho [Look/See], Achha [I see], Kya rate hai [What's the rate]",
+    additionalRules: "Push hard on landed cost per litre including import duties. Compare against Castrol India pricing. Interested in white-label only if margins are significantly better. Wants exclusivity for Maharashtra state.",
+    voiceEnvKey: "ELEVENLABS_VOICE_INDIA",
   },
 };
 
+// Freelancer-visible markets (excludes Myanmar)
+export const FREELANCER_MARKETS: MarketId[] = ["philippines", "vietnam", "india"];
+
+// Admin sees all markets
+export const ADMIN_MARKETS: MarketId[] = ["philippines", "vietnam", "india", "myanmar"];
+
 export const MARKET_LIST = Object.values(MARKETS);
+
+export function getMarketsForRole(role: "admin" | "freelancer"): Market[] {
+  const ids = role === "admin" ? ADMIN_MARKETS : FREELANCER_MARKETS;
+  return ids.map((id) => MARKETS[id]);
+}

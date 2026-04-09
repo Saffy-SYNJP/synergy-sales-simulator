@@ -1,15 +1,16 @@
 "use client";
-import { MARKET_LIST, MarketId } from "@/lib/markets";
+import { Market, MarketId } from "@/lib/markets";
 
 interface Props {
   value: MarketId | null;
   onChange: (m: MarketId) => void;
+  markets: Market[];
 }
 
-export default function MarketSelector({ value, onChange }: Props) {
+export default function MarketSelector({ value, onChange, markets }: Props) {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-      {MARKET_LIST.map((m) => {
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      {markets.map((m) => {
         const active = value === m.id;
         return (
           <button
