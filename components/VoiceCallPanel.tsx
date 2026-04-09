@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ConversationProvider, useConversation } from "@elevenlabs/react";
+import { Conversation } from "@elevenlabs/client";
+import type { VoiceConversation, TextConversation, Status } from "@elevenlabs/client";
 import { Mode } from "@/lib/prompts";
 import { Market, MarketId } from "@/lib/markets";
 import { getConvaiOverrides } from "@/lib/convai";
@@ -23,56 +24,24 @@ function formatTime(seconds: number): string {
   return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
 
-/** Wrapper that provides ConversationProvider */
-export default function VoiceCallPanel(props: Props) {
-  return (
-    <ConversationProvider>
-      <VoiceCallInner {...props} />
-    </ConversationProvider>
-  );
-}
-
-/** Inner component that uses the conversation hooks */
-function VoiceCallInner({ mode, market, marketId, onEndCall }: Props) {
+export default function VoiceCallPanel({ mode, market, marketId, onEndCall }: Props) {
   const [callDuration, setCallDuration] = useState(0);
   const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(true);
+  const [status, setStatus] = useState<Status>("connecting");
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const transcriptRef = useRef<TranscriptLine[]>([]);
   const callStartRef = useRef(Date.now());
+  const conversationRef = useRef<VoiceConversation | TextConversation | null>(null);
+  const connectCalledRef = useRef(false);
   const onEndCallRef = useRef(onEndCall);
   useEffect(() => { onEndCallRef.current = onEndCall; }, [onEndCall]);
 
-  const conversation = useConversation({
-    onConnect: () => {
-      setConnecting(false);
-      setError(null);
-    },
-    onDisconnect: () => {
-      const duration = Math.round((Date.now() - callStartRef.current) / 1000);
-      onEndCallRef.current(transcriptRef.current, duration);
-    },
-    onError: (message: string) => {
-      console.error("[ConvAI] error:", message);
-      setError(message || "Connection error");
-      setConnecting(false);
-    },
-    onMessage: (props: { message: string; source: "user" | "ai" }) => {
-      if (!props.message?.trim()) return;
-      const role = props.source === "user" ? "user" as const : "assistant" as const;
-      setTranscript((prev) => {
-        const next = [...prev, { role, text: props.message }];
-        transcriptRef.current = next;
-        return next;
-      });
-    },
-  });
-
-  // Start connection on mount — guard against double-invocation
-  const connectCalledRef = useRef(false);
+  // Start connection on mount
   useEffect(() => {
     if (connectCalledRef.current) return;
     connectCalledRef.current = true;
@@ -85,17 +54,18 @@ function VoiceCallInner({ mode, market, marketId, onEndCall }: Props) {
 
     const overrides = getConvaiOverrides(mode, marketId);
 
-    // Fetch signed URL from our server, then connect
-    fetch("/api/convai")
-      .then(async (res) => {
+    async function connect() {
+      try {
+        // Get signed URL from server
+        const res = await fetch("/api/convai");
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
           throw new Error((data as { error?: string }).error || `HTTP ${res.status}`);
         }
-        return res.json() as Promise<{ signedUrl: string }>;
-      })
-      .then(({ signedUrl }) => {
-        conversation.startSession({
+        const { signedUrl } = (await res.json()) as { signedUrl: string };
+
+        // Use @elevenlabs/client directly — no React provider needed
+        const conv = await Conversation.startSession({
           signedUrl,
           overrides: {
             agent: {
@@ -107,15 +77,52 @@ function VoiceCallInner({ mode, market, marketId, onEndCall }: Props) {
               voiceId: overrides.voiceId,
             },
           },
+          onConnect: () => {
+            setConnecting(false);
+            setStatus("connected");
+            setError(null);
+          },
+          onDisconnect: () => {
+            setStatus("disconnected");
+            const duration = Math.round((Date.now() - callStartRef.current) / 1000);
+            onEndCallRef.current(transcriptRef.current, duration);
+          },
+          onError: (message: string) => {
+            console.error("[ConvAI] error:", message);
+            setError(message || "Connection error");
+          },
+          onMessage: (props: { message: string; source: "user" | "ai" }) => {
+            if (!props.message?.trim()) return;
+            const role = props.source === "user" ? "user" as const : "assistant" as const;
+            setTranscript((prev) => {
+              const next = [...prev, { role, text: props.message }];
+              transcriptRef.current = next;
+              return next;
+            });
+          },
+          onModeChange: (props: { mode: "speaking" | "listening" }) => {
+            setIsSpeaking(props.mode === "speaking");
+          },
+          onStatusChange: (props: { status: Status }) => {
+            setStatus(props.status);
+          },
         });
-      })
-      .catch((err) => {
+
+        conversationRef.current = conv;
+      } catch (err) {
+        console.error("[ConvAI] startSession failed:", err);
         setError(err instanceof Error ? err.message : "Failed to connect");
         setConnecting(false);
-      });
+      }
+    }
+
+    connect();
 
     return () => {
-      try { conversation.endSession(); } catch { /* ignore */ }
+      if (conversationRef.current) {
+        conversationRef.current.endSession().catch(() => {});
+        conversationRef.current = null;
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -132,20 +139,23 @@ function VoiceCallInner({ mode, market, marketId, onEndCall }: Props) {
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [transcript]);
 
-  const handleEndCall = useCallback(() => {
-    try {
-      conversation.endSession();
-    } catch {
+  const handleEndCall = useCallback(async () => {
+    if (conversationRef.current) {
+      try {
+        await conversationRef.current.endSession();
+      } catch {
+        // If endSession fails, fire callback directly
+        const duration = Math.round((Date.now() - callStartRef.current) / 1000);
+        onEndCallRef.current(transcriptRef.current, duration);
+      }
+    } else {
       const duration = Math.round((Date.now() - callStartRef.current) / 1000);
       onEndCallRef.current(transcriptRef.current, duration);
     }
-  }, [conversation]);
+  }, []);
 
   const personaName = market?.personaName ?? (mode === "coach" ? "Sales Coach" : "AI Representative");
   const personaDetail = market ? `${market.role} · ${market.city}` : mode === "coach" ? "Hormozi-Style Coach" : "Synergy Lubricant";
-
-  const isSpeaking = conversation.isSpeaking;
-  const status = conversation.status;
 
   let phaseLabel = "Call connected";
   let phaseColor = "text-gray-400";
@@ -239,13 +249,6 @@ function VoiceCallInner({ mode, market, marketId, onEndCall }: Props) {
       <div className="px-4 py-5 sm:py-6 border-t border-navy-border/30 safe-bottom">
         <div className="flex items-center justify-center gap-6">
           <button
-            onClick={() => conversation.setVolume({ volume: isSpeaking ? 0 : 1 })}
-            className="w-14 h-14 rounded-full bg-navy-card border-2 border-navy-border text-lg flex items-center justify-center hover:border-gray-500 active:scale-90 transition-all"
-          >
-            {isSpeaking ? "🔇" : "🔊"}
-          </button>
-
-          <button
             onClick={handleEndCall}
             className="w-16 h-16 rounded-full bg-accent-red flex items-center justify-center text-xl text-white hover:bg-red-600 active:scale-90 transition-all shadow-[0_0_20px_rgba(239,68,68,0.2)]"
           >
@@ -254,7 +257,7 @@ function VoiceCallInner({ mode, market, marketId, onEndCall }: Props) {
         </div>
 
         <div className="text-center text-[10px] text-gray-600 mt-3">
-          {connecting ? "Setting up WebRTC connection..." : "Speak naturally — AI handles turn detection"}
+          {connecting ? "Setting up connection..." : "Speak naturally — AI handles turn detection"}
         </div>
       </div>
     </div>
