@@ -88,6 +88,7 @@ function VoiceCallInner({ mode, market, marketId, onEndCall }: Props) {
     try {
       conversation.startSession({
         agentId: "agent_8301kns5e43zf9cax37tjgrkh3r7",
+        connectionType: "websocket",
         overrides: {
           agent: {
             prompt: { prompt: overrides.prompt },
