@@ -136,10 +136,13 @@ Max 70 words total. Blunt. No preamble.`;
 
 export function buildSummaryPrompt(mode: Mode = "prospect"): string {
   const roleContext = mode === "demo"
-    ? `In this conversation, the ASSISTANT is the Synergy salesperson and the USER is playing the prospect.
-Evaluate the ASSISTANT's sales performance — how well the AI sold. Score the AI salesperson, not the user.
-The "topThingsToImprove" should suggest how the AI salesperson could have sold better.
-The "topThingsDoneWell" should highlight what the AI salesperson did right.`
+    ? `In this conversation, the ASSISTANT is an elite Synergy salesperson DEMONSTRATING perfect Hormozi-style selling. The USER played the difficult prospect.
+This is a LEARNING session — the user watched the AI sell to learn from it.
+
+Score how well the AI demonstrated each sales technique.
+"topThingsDoneWell" = KEY TECHNIQUES the AI demonstrated that the user should LEARN and COPY. Frame these as lessons: "Notice how the AI did X — use this when Y."
+"topThingsToImprove" = LEARNING OPPORTUNITIES for the user. Frame each as: what the user should practice applying from what they observed. The "script" field should give the user a word-for-word line THEY can use in their own calls, inspired by what the AI demonstrated.
+"recommendedNextSession" = what the user should practice next based on what they observed.`
     : mode === "coach"
     ? `In this conversation, the ASSISTANT is the sales coach and the USER is a salesperson getting coached.
 Evaluate the quality of the coaching session — was the advice actionable and specific?
