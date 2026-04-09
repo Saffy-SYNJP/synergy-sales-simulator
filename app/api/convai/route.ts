@@ -11,9 +11,16 @@ export async function GET() {
   const apiKey = process.env.ELEVENLABS_API_KEY;
   const agentId = process.env.ELEVENLABS_AGENT_ID;
 
-  if (!apiKey || !agentId) {
+  if (!apiKey) {
     return NextResponse.json(
-      { error: "ElevenLabs API key or Agent ID not configured" },
+      { error: "ELEVENLABS_API_KEY env var is not set. Add it in Vercel dashboard → Settings → Environment Variables." },
+      { status: 500 }
+    );
+  }
+
+  if (!agentId) {
+    return NextResponse.json(
+      { error: "ELEVENLABS_AGENT_ID env var is not set. Add it in Vercel dashboard → Settings → Environment Variables." },
       { status: 500 }
     );
   }

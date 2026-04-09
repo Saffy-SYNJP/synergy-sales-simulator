@@ -71,8 +71,12 @@ function VoiceCallInner({ mode, market, marketId, onEndCall }: Props) {
     },
   });
 
-  // Start connection on mount
+  // Start connection on mount — guard against double-invocation
+  const connectCalledRef = useRef(false);
   useEffect(() => {
+    if (connectCalledRef.current) return;
+    connectCalledRef.current = true;
+
     let cancelled = false;
 
     async function connect() {
@@ -116,7 +120,11 @@ function VoiceCallInner({ mode, market, marketId, onEndCall }: Props) {
     }
 
     connect();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      // Clean up WebSocket on unmount
+      try { conversation.endSession(); } catch { /* ignore */ }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
