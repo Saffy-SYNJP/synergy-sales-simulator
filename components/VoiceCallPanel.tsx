@@ -176,7 +176,7 @@ export default function VoiceCallPanel({ mode, market, marketId, onEndCall }: Pr
   }
 
   return (
-    <div className="absolute inset-0 z-50 flex flex-col bg-navy-DEFAULT/98 backdrop-blur-xl animate-fade-in">
+    <div className="fixed inset-0 z-50 flex flex-col bg-navy-DEFAULT backdrop-blur-xl animate-fade-in">
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-navy-border/30">
         <div className="flex items-center gap-2">
