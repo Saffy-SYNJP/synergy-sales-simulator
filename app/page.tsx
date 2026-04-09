@@ -12,10 +12,11 @@ import ChatPanel from "@/components/ChatPanel";
 import Leaderboard from "@/components/Leaderboard";
 import ProgressDashboard from "@/components/ProgressDashboard";
 import AdminPanel from "@/components/AdminPanel";
+import CallLogs from "@/components/CallLogs";
 import LevelUpModal from "@/components/LevelUpModal";
 import { Mode } from "@/lib/prompts";
 
-type View = "training" | "progress" | "leaderboard" | "admin";
+type View = "training" | "progress" | "calls" | "leaderboard" | "admin";
 
 export default function Home() {
   const [user, setUser] = useState<SessionUser | null>(null);
@@ -63,6 +64,7 @@ export default function Home() {
 
   const NAV: { id: View; label: string; icon: string; adminOnly?: boolean }[] = [
     { id: "training", label: "Training", icon: "🎯" },
+    { id: "calls", label: "Call Logs", icon: "📞" },
     { id: "progress", label: "Progress", icon: "📊" },
     { id: "leaderboard", label: "Board", icon: "🏆" },
     { id: "admin", label: "Admin", icon: "⚙️", adminOnly: true },
@@ -222,6 +224,7 @@ export default function Home() {
           </div>
         )}
 
+        {view === "calls" && <CallLogs email={user.email} />}
         {view === "progress" && <ProgressDashboard email={user.email} />}
         {view === "leaderboard" && <Leaderboard currentUserEmail={user.email} isAdmin={admin} />}
         {view === "admin" && admin && <AdminPanel />}

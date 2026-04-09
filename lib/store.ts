@@ -84,6 +84,46 @@ export function addSession(record: SessionRecord): void {
   setJSON(`sessions_${record.email}`, sessions);
 }
 
+// --- Call Logs ---
+export interface CallLogEntry {
+  id: string;
+  email: string;
+  timestamp: number;
+  duration: number; // seconds
+  mode: string;
+  market: string;
+  personaName: string;
+  score: number | null;
+  transcript: Array<{ role: "user" | "assistant"; text: string }>;
+  voiceCall: boolean;
+}
+
+export function getCallLogs(email: string): CallLogEntry[] {
+  return getJSON<CallLogEntry[]>(`calllogs_${email}`, []);
+}
+
+export function getAllCallLogs(): CallLogEntry[] {
+  if (typeof window === "undefined") return [];
+  const all: CallLogEntry[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith(`${PREFIX}calllogs_`)) {
+      try {
+        const records = JSON.parse(localStorage.getItem(k) || "[]");
+        all.push(...records);
+      } catch { /* skip */ }
+    }
+  }
+  return all.sort((a, b) => b.timestamp - a.timestamp);
+}
+
+export function addCallLog(entry: CallLogEntry): void {
+  const logs = getCallLogs(entry.email);
+  logs.unshift(entry);
+  if (logs.length > 100) logs.length = 100;
+  setJSON(`calllogs_${entry.email}`, logs);
+}
+
 // --- Achievements ---
 export type BadgeId =
   | "first_blood"

@@ -9,13 +9,15 @@ import MessageBubble from "./MessageBubble";
 import ScoreTracker from "./ScoreTracker";
 import QuickActions from "./QuickActions";
 import VoiceStatusBar from "./VoiceStatusBar";
+import VoiceCallPanel from "./VoiceCallPanel";
 import SessionSummary, { SummaryData } from "./SessionSummary";
 import PointsBreakdownPanel from "./PointsBreakdownPanel";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { useVoicePlayback } from "@/hooks/useVoicePlayback";
+import { useVoiceCall } from "@/hooks/useVoiceCall";
 import { VoiceRole } from "@/lib/voices";
 import { recordSession, PointsBreakdown } from "@/lib/gamification";
-import { BadgeId } from "@/lib/store";
+import { BadgeId, addCallLog } from "@/lib/store";
 
 interface Props {
   mode: Mode;
@@ -29,6 +31,7 @@ interface Props {
 export default function ChatPanel({ mode, marketId, objection, userEmail, userName, onSessionEnd }: Props) {
   const voiceEnabled = process.env.NEXT_PUBLIC_VOICE_ENABLED === "true";
   const [voiceMode, setVoiceMode] = useState(false);
+  const [voiceCallActive, setVoiceCallActive] = useState(false);
   const [score, setScore] = useState(EMPTY_SCORE);
   const [midCallRequested, setMidCallRequested] = useState(false);
   const [sessionEnded, setSessionEnded] = useState(false);
@@ -39,6 +42,7 @@ export default function ChatPanel({ mode, marketId, objection, userEmail, userNa
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const lastSpokenIdRef = useRef<string | null>(null);
+  const sessionStartRef = useRef<number>(Date.now());
 
   const market = marketId ? MARKETS[marketId] : undefined;
 
@@ -59,6 +63,10 @@ export default function ChatPanel({ mode, marketId, objection, userEmail, userNa
   } = useChat({
     api: "/api/chat",
     body,
+    onFinish: () => {
+      // Set session start on first message
+      if (messages.length === 0) sessionStartRef.current = Date.now();
+    },
     onError: (err) => console.error("[useChat] error:", err),
   });
 
@@ -74,6 +82,36 @@ export default function ChatPanel({ mode, marketId, objection, userEmail, userNa
     onFinal: (t) => { if (!t.trim()) return; append({ role: "user", content: t }); setInput(""); },
     language: marketId === "vietnam" ? "vi-VN" : marketId === "philippines" ? "fil-PH" : "en-US",
   });
+
+  // Voice call mode
+  const latestAssistant = useMemo(() => {
+    const a = [...messages].reverse().find((m) => m.role === "assistant");
+    return a ?? null;
+  }, [messages]);
+
+  const voiceCall = useVoiceCall({
+    language: marketId === "vietnam" ? "vi-VN" : marketId === "philippines" ? "fil-PH" : "en-US",
+    voiceRole,
+    onUserMessage: (text) => { append({ role: "user", content: text }); },
+    aiLoading: isLoading,
+    latestAssistantText: latestAssistant?.content as string ?? null,
+    latestAssistantId: latestAssistant?.id ?? null,
+    active: voiceCallActive,
+  });
+
+  const callTranscript = useMemo(() =>
+    messages.map((m) => ({
+      role: m.role as "user" | "assistant",
+      text: (m.content as string).replace(/\[[^\]]+\]/g, "").replace(/💡 TIP:[^\n]*/g, "").trim(),
+    })),
+    [messages]
+  );
+
+  const handleStartCall = useCallback(() => {
+    sessionStartRef.current = Date.now();
+    setVoiceCallActive(true);
+    setVoiceMode(true);
+  }, []);
 
   useEffect(() => {
     scrollAnchorRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -113,6 +151,15 @@ export default function ChatPanel({ mode, marketId, objection, userEmail, userNa
   const handleEndSession = useCallback(async () => {
     if (messages.length < 2) return;
     setSessionEnded(true); setSummaryLoading(true); setSummaryError(null); setSummary(null); setPointsResult(null);
+
+    // Save call log
+    const duration = Math.round((Date.now() - sessionStartRef.current) / 1000);
+    const personaName = market?.personaName ?? (mode === "coach" ? "Sales Coach" : "AI Rep");
+    const transcriptLines = messages.map((m) => ({
+      role: m.role as "user" | "assistant",
+      text: (m.content as string).replace(/\[[^\]]+\]/g, "").replace(/💡 TIP:[^\n]*/g, "").trim(),
+    }));
+
     try {
       const res = await fetch("/api/summary", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages }) });
       if (!res.ok) { const data = await res.json().catch(() => ({})); throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`); }
@@ -122,12 +169,48 @@ export default function ChatPanel({ mode, marketId, objection, userEmail, userNa
       const result = recordSession(userEmail, userName, mode, marketId || "coach", objStr, data, voiceMode);
       setPointsResult({ breakdown: result.points, newBadges: result.newBadges });
       if (onSessionEnd) onSessionEnd({ leveledUp: result.leveledUp, newLevel: result.newLevel });
-    } catch (err) { setSummaryError(err instanceof Error ? err.message : "Unknown error"); }
+
+      // Save call log with score
+      addCallLog({
+        id: `call_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        email: userEmail,
+        timestamp: sessionStartRef.current,
+        duration,
+        mode,
+        market: marketId || "coach",
+        personaName,
+        score: data.overallScore ?? null,
+        transcript: transcriptLines,
+        voiceCall: voiceCallActive || voiceMode,
+      });
+    } catch (err) {
+      setSummaryError(err instanceof Error ? err.message : "Unknown error");
+      // Still save call log even if summary fails
+      addCallLog({
+        id: `call_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        email: userEmail,
+        timestamp: sessionStartRef.current,
+        duration,
+        mode,
+        market: marketId || "coach",
+        personaName,
+        score: null,
+        transcript: transcriptLines,
+        voiceCall: voiceCallActive || voiceMode,
+      });
+    }
     finally { setSummaryLoading(false); }
-  }, [messages, userEmail, userName, mode, marketId, objection, voiceMode, onSessionEnd]);
+  }, [messages, userEmail, userName, mode, marketId, market, objection, voiceMode, voiceCallActive, onSessionEnd]);
+
+  const handleEndCall = useCallback(() => {
+    setVoiceCallActive(false);
+    if (messages.length >= 2) {
+      handleEndSession();
+    }
+  }, [messages.length, handleEndSession]);
 
   const handlePracticeAgain = useCallback(() => {
-    setSessionEnded(false); setSummary(null); setSummaryError(null); setPointsResult(null); setScore(EMPTY_SCORE); setMessages([]); setInput("");
+    setSessionEnded(false); setVoiceCallActive(false); setSummary(null); setSummaryError(null); setPointsResult(null); setScore(EMPTY_SCORE); setMessages([]); setInput("");
   }, [setMessages, setInput]);
 
   const modeLabel = mode === "prospect" && market
@@ -139,7 +222,24 @@ export default function ChatPanel({ mode, marketId, objection, userEmail, userNa
   const modeIcon = mode === "prospect" ? "🎯" : mode === "demo" ? "👁" : "🧠";
 
   return (
-    <div className="flex flex-col h-full glass-card rounded-2xl overflow-hidden">
+    <div className="relative flex flex-col h-full glass-card rounded-2xl overflow-hidden">
+      {/* Voice Call Overlay */}
+      {voiceCallActive && (
+        <VoiceCallPanel
+          mode={mode}
+          market={market}
+          phase={voiceCall.phase}
+          callDuration={voiceCall.callDuration}
+          audioLevel={voiceCall.audioLevel}
+          liveTranscript={voiceCall.liveTranscript}
+          transcript={callTranscript}
+          onStartListening={voiceCall.startListening}
+          onStopListening={voiceCall.stopListening}
+          onInterrupt={voiceCall.interrupt}
+          onEndCall={handleEndCall}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 border-b border-navy-border flex-shrink-0">
         <div className="flex items-center gap-2 min-w-0">
@@ -148,7 +248,15 @@ export default function ChatPanel({ mode, marketId, objection, userEmail, userNa
           {market && <span className="text-xs text-gray-500 hidden sm:inline">{market.flag}</span>}
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          {voiceEnabled && mode !== "coach" && !sessionEnded && (
+          {voiceEnabled && !needsMarket && !sessionEnded && !voiceCallActive && (
+            <button
+              onClick={handleStartCall}
+              className="text-[11px] px-2.5 py-1 rounded-full border border-accent-green/40 text-accent-green hover:bg-accent-green/10 transition-all flex items-center gap-1"
+            >
+              📞 Call
+            </button>
+          )}
+          {voiceEnabled && mode !== "coach" && !sessionEnded && !voiceCallActive && (
             <button
               onClick={() => setVoiceMode((v) => !v)}
               className={`text-[11px] px-2.5 py-1 rounded-full border transition-all ${
@@ -158,7 +266,7 @@ export default function ChatPanel({ mode, marketId, objection, userEmail, userNa
               {voiceMode ? "🔊 ON" : "🔇"}
             </button>
           )}
-          {canEndSession && (
+          {canEndSession && !voiceCallActive && (
             <button
               onClick={handleEndSession}
               className="text-[11px] px-2.5 py-1 rounded-full border border-accent-red/30 text-accent-red hover:bg-accent-red/10 transition-all"
