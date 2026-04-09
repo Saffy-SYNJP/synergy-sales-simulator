@@ -85,25 +85,34 @@ function VoiceCallInner({ mode, market, marketId, onEndCall }: Props) {
 
     const overrides = getConvaiOverrides(mode, marketId);
 
-    try {
-      conversation.startSession({
-        agentId: "agent_8301kns5e43zf9cax37tjgrkh3r7",
-        connectionType: "websocket",
-        overrides: {
-          agent: {
-            prompt: { prompt: overrides.prompt },
-            firstMessage: overrides.firstMessage,
-            language: "en",
+    // Fetch signed URL from our server, then connect
+    fetch("/api/convai")
+      .then(async (res) => {
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error((data as { error?: string }).error || `HTTP ${res.status}`);
+        }
+        return res.json() as Promise<{ signedUrl: string }>;
+      })
+      .then(({ signedUrl }) => {
+        conversation.startSession({
+          signedUrl,
+          overrides: {
+            agent: {
+              prompt: { prompt: overrides.prompt },
+              firstMessage: overrides.firstMessage,
+              language: "en",
+            },
+            tts: {
+              voiceId: overrides.voiceId,
+            },
           },
-          tts: {
-            voiceId: overrides.voiceId,
-          },
-        },
+        });
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Failed to connect");
+        setConnecting(false);
       });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to connect");
-      setConnecting(false);
-    }
 
     return () => {
       try { conversation.endSession(); } catch { /* ignore */ }
