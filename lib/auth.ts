@@ -9,23 +9,8 @@ export interface User {
   allowedMarkets: string[]; // markets this user can access
 }
 
-export const USERS: User[] = [
-  {
-    email: "jan@synergylub.com",
-    password: "Synergy2026",
-    name: "Jan",
-    role: "freelancer",
-    market: "philippines",
-    allowedMarkets: ["philippines", "vietnam", "india"],
-  },
-  {
-    email: "ted@synergylub.com",
-    password: "Synergy2026",
-    name: "Ted",
-    role: "freelancer",
-    market: "myanmar",
-    allowedMarkets: ["philippines", "vietnam", "india"],
-  },
+// Built-in admin account
+const ADMIN_USERS: User[] = [
   {
     email: "saffy@synergylub.com",
     password: "SynergyAdmin2026",
@@ -35,6 +20,26 @@ export const USERS: User[] = [
     allowedMarkets: ["philippines", "vietnam", "india", "myanmar"],
   },
 ];
+
+const CUSTOM_USERS_KEY = "synergy_simulator_custom_users";
+
+function getCustomUsers(): User[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(CUSTOM_USERS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveCustomUsers(users: User[]): void {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(CUSTOM_USERS_KEY, JSON.stringify(users));
+  }
+}
+
+function getAllUsers(): User[] {
+  return [...ADMIN_USERS, ...getCustomUsers()];
+}
 
 export interface SessionUser {
   email: string;
@@ -46,8 +51,48 @@ export interface SessionUser {
 
 const SESSION_KEY = "synergy_simulator_session";
 
+const FREELANCER_MARKETS = ["philippines", "vietnam", "india"];
+
+export function register(name: string, email: string, password: string): { user?: SessionUser; error?: string } {
+  const all = getAllUsers();
+  if (all.find((u) => u.email.toLowerCase() === email.toLowerCase())) {
+    return { error: "An account with this email already exists" };
+  }
+  if (password.length < 6) {
+    return { error: "Password must be at least 6 characters" };
+  }
+  if (!name.trim()) {
+    return { error: "Name is required" };
+  }
+
+  const newUser: User = {
+    email: email.toLowerCase().trim(),
+    password,
+    name: name.trim(),
+    role: "freelancer",
+    market: "philippines",
+    allowedMarkets: FREELANCER_MARKETS,
+  };
+
+  const custom = getCustomUsers();
+  custom.push(newUser);
+  saveCustomUsers(custom);
+
+  const session: SessionUser = {
+    email: newUser.email,
+    name: newUser.name,
+    role: newUser.role,
+    market: newUser.market,
+    allowedMarkets: newUser.allowedMarkets,
+  };
+  if (typeof window !== "undefined") {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  }
+  return { user: session };
+}
+
 export function login(email: string, password: string): SessionUser | null {
-  const user = USERS.find(
+  const user = getAllUsers().find(
     (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
   );
   if (!user) return null;
