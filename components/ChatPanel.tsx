@@ -120,7 +120,7 @@ export default function ChatPanel({ mode, marketId, objection, userEmail, userNa
       fetch("/api/summary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: msgs }),
+        body: JSON.stringify({ messages: msgs, mode }),
       })
         .then(async (res) => {
           if (!res.ok) {
@@ -193,7 +193,7 @@ export default function ChatPanel({ mode, marketId, objection, userEmail, userNa
     }));
 
     try {
-      const res = await fetch("/api/summary", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages }) });
+      const res = await fetch("/api/summary", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages, mode }) });
       if (!res.ok) { const data = await res.json().catch(() => ({})); throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`); }
       const data = await res.json() as SummaryData;
       setSummary(data);

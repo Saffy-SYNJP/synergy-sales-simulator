@@ -134,10 +134,26 @@ Opening: X/10 | Qualification: X/10 | Objection: X/10
 Max 70 words total. Blunt. No preamble.`;
 }
 
-export function buildSummaryPrompt(): string {
+export function buildSummaryPrompt(mode: Mode = "prospect"): string {
+  const roleContext = mode === "demo"
+    ? `In this conversation, the ASSISTANT is the Synergy salesperson and the USER is playing the prospect.
+Evaluate the ASSISTANT's sales performance — how well the AI sold. Score the AI salesperson, not the user.
+The "topThingsToImprove" should suggest how the AI salesperson could have sold better.
+The "topThingsDoneWell" should highlight what the AI salesperson did right.`
+    : mode === "coach"
+    ? `In this conversation, the ASSISTANT is the sales coach and the USER is a salesperson getting coached.
+Evaluate the quality of the coaching session — was the advice actionable and specific?
+Score based on how useful the session was for the user's development.`
+    : `In this conversation, the USER is the Synergy salesperson and the ASSISTANT is playing the prospect.
+Evaluate the USER's sales performance — how well the user sold. Score the user, not the AI prospect.
+The "topThingsToImprove" should suggest how the user could have sold better.
+The "topThingsDoneWell" should highlight what the user did right.`;
+
   return `${SYNERGY_KNOWLEDGE}
 
 You are a Hormozi-style sales coach for Synergy Lubricant. Review the full conversation above and generate a post-session performance summary.
+
+${roleContext}
 
 Return your analysis in this EXACT JSON format (no markdown, no preamble, just valid JSON):
 {

@@ -1,12 +1,13 @@
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { generateText, CoreMessage } from "ai";
-import { buildSummaryPrompt } from "@/lib/prompts";
+import { buildSummaryPrompt, Mode } from "@/lib/prompts";
 
 export const runtime = "edge";
 export const maxDuration = 60;
 
 interface SummaryBody {
   messages: CoreMessage[];
+  mode?: Mode;
 }
 
 export async function POST(req: Request) {
@@ -30,7 +31,7 @@ export async function POST(req: Request) {
     });
   }
 
-  const { messages } = body;
+  const { messages, mode } = body;
 
   if (!Array.isArray(messages) || messages.length === 0) {
     return new Response(
@@ -55,7 +56,7 @@ export async function POST(req: Request) {
   try {
     const { text } = await generateText({
       model: anthropic(modelId),
-      system: buildSummaryPrompt(),
+      system: buildSummaryPrompt(mode),
       messages: safeMessages,
       maxTokens: 1024,
       temperature: 0.3,
