@@ -137,7 +137,7 @@ export default function ChatPanel({ mode, marketId, objection, userEmail, userNa
     if (!lastAssistant || isLoading) return;
     if (lastSpokenIdRef.current === lastAssistant.id) return;
     lastSpokenIdRef.current = lastAssistant.id;
-    const spoken = lastAssistant.content.replace(/\[[^\]]+\]/g, "").replace(/💡 TIP:[^\n]*/g, "").trim();
+    const spoken = lastAssistant.content.replace(/\*[^*]+\*/g, "").replace(/\[[^\]]+\]/g, "").replace(/💡 TIP:[^\n]*/g, "").replace(/\s{2,}/g, " ").trim();
     if (spoken) playback.play(spoken, voiceRole);
   }, [messages, isLoading, voiceMode, voiceEnabled, voiceRole, playback]);
 
@@ -331,7 +331,7 @@ export default function ChatPanel({ mode, marketId, objection, userEmail, userNa
                 mode={mode}
                 voiceEnabled={voiceEnabled && voiceMode}
                 onReplay={() => {
-                  const spoken = m.content.replace(/\[[^\]]+\]/g, "").replace(/💡 TIP:[^\n]*/g, "").trim();
+                  const spoken = m.content.replace(/\*[^*]+\*/g, "").replace(/\[[^\]]+\]/g, "").replace(/💡 TIP:[^\n]*/g, "").replace(/\s{2,}/g, " ").trim();
                   if (spoken) playback.play(spoken, voiceRole);
                 }}
               />
