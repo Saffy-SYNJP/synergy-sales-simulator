@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  reactStrictMode: false,
   env: {
     // Voice is always enabled — STT uses free Web Speech API (Chrome/Edge),
     // TTS uses ElevenLabs only if ELEVENLABS_API_KEY is set.

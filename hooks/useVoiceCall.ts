@@ -37,6 +37,7 @@ export function useVoiceCall({
   const [liveTranscript, setLiveTranscript] = useState("");
 
   const lastSpokenIdRef = useRef<string | null>(null);
+  const playedIdsRef = useRef<Set<string>>(new Set());
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoListenRef = useRef(false);
   const silenceWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -88,6 +89,9 @@ export function useVoiceCall({
     if (!latestAssistantText || !latestAssistantId) return;
     if (lastSpokenIdRef.current === latestAssistantId) return;
 
+    // Hard guard: never play the same message twice
+    if (playedIdsRef.current.has(latestAssistantId)) return;
+    playedIdsRef.current.add(latestAssistantId);
     lastSpokenIdRef.current = latestAssistantId;
     const cleaned = latestAssistantText
       .replace(/\*[^*]+\*/g, "")           // strip *action descriptions*

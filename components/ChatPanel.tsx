@@ -132,6 +132,8 @@ export default function ChatPanel({ mode, marketId, objection, userEmail, userNa
   }, [userMsgCount, mode]);
 
   useEffect(() => {
+    // During voice call, useVoiceCall handles TTS — skip this effect entirely
+    if (voiceCallActive) return;
     if (!voiceMode || !voiceEnabled) return;
     const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
     if (!lastAssistant || isLoading) return;
@@ -139,7 +141,7 @@ export default function ChatPanel({ mode, marketId, objection, userEmail, userNa
     lastSpokenIdRef.current = lastAssistant.id;
     const spoken = lastAssistant.content.replace(/\*[^*]+\*/g, "").replace(/\[[^\]]+\]/g, "").replace(/💡 TIP:[^\n]*/g, "").replace(/\s{2,}/g, " ").trim();
     if (spoken) playback.play(spoken, voiceRole);
-  }, [messages, isLoading, voiceMode, voiceEnabled, voiceRole, playback]);
+  }, [messages, isLoading, voiceMode, voiceEnabled, voiceCallActive, voiceRole, playback]);
 
   useEffect(() => {
     if (voice.status === "recording" && playback.speaking) playback.stop();
