@@ -40,7 +40,7 @@ echo ">> ✅ ANTHROPIC_API_KEY"
 printf "false" | vercel env add NEXT_PUBLIC_VOICE_ENABLED production preview development --yes
 echo ">> ✅ NEXT_PUBLIC_VOICE_ENABLED = false"
 
-ELKEY=$(grep 'sk_5473eb88' .env.local | grep -oP 'sk_[a-f0-9]+')
+ELKEY=$(grep '^ELEVENLABS_API_KEY=' .env.local | cut -d'=' -f2-)
 printf "%s" "$ELKEY" | vercel env add ELEVENLABS_API_KEY production preview development --yes
 echo ">> ✅ ELEVENLABS_API_KEY"
 
