@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useConversation } from "@elevenlabs/react";
+import { ConversationProvider, useConversation } from "@elevenlabs/react";
 import { Mode } from "@/lib/prompts";
 import { Market, MarketId } from "@/lib/markets";
 import { getConvaiOverrides } from "@/lib/convai";
@@ -23,7 +23,17 @@ function formatTime(seconds: number): string {
   return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
 
-export default function VoiceCallPanel({ mode, market, marketId, onEndCall }: Props) {
+/** Wrapper that provides ConversationProvider */
+export default function VoiceCallPanel(props: Props) {
+  return (
+    <ConversationProvider>
+      <VoiceCallInner {...props} />
+    </ConversationProvider>
+  );
+}
+
+/** Inner component that uses the conversation hooks */
+function VoiceCallInner({ mode, market, marketId, onEndCall }: Props) {
   const [callDuration, setCallDuration] = useState(0);
   const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +43,8 @@ export default function VoiceCallPanel({ mode, market, marketId, onEndCall }: Pr
   const transcriptEndRef = useRef<HTMLDivElement>(null);
   const transcriptRef = useRef<TranscriptLine[]>([]);
   const callStartRef = useRef(Date.now());
+  const onEndCallRef = useRef(onEndCall);
+  useEffect(() => { onEndCallRef.current = onEndCall; }, [onEndCall]);
 
   const conversation = useConversation({
     onConnect: () => {
@@ -41,8 +53,7 @@ export default function VoiceCallPanel({ mode, market, marketId, onEndCall }: Pr
     },
     onDisconnect: () => {
       const duration = Math.round((Date.now() - callStartRef.current) / 1000);
-      // Use ref to get latest transcript since state may be stale in closure
-      onEndCall(transcriptRef.current, duration);
+      onEndCallRef.current(transcriptRef.current, duration);
     },
     onError: (message: string) => {
       console.error("[ConvAI] error:", message);
@@ -72,7 +83,6 @@ export default function VoiceCallPanel({ mode, market, marketId, onEndCall }: Pr
       }
 
       try {
-        // Get signed URL from our server
         const res = await fetch("/api/convai");
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
@@ -82,10 +92,9 @@ export default function VoiceCallPanel({ mode, market, marketId, onEndCall }: Pr
 
         if (cancelled) return;
 
-        // Build overrides for this market/mode
         const overrides = getConvaiOverrides(mode, marketId);
 
-        await conversation.startSession({
+        conversation.startSession({
           signedUrl,
           overrides: {
             agent: {
@@ -107,10 +116,7 @@ export default function VoiceCallPanel({ mode, market, marketId, onEndCall }: Pr
     }
 
     connect();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -118,9 +124,7 @@ export default function VoiceCallPanel({ mode, market, marketId, onEndCall }: Pr
   useEffect(() => {
     callStartRef.current = Date.now();
     timerRef.current = setInterval(() => setCallDuration((d) => d + 1), 1000);
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
 
   // Auto-scroll transcript
@@ -128,15 +132,14 @@ export default function VoiceCallPanel({ mode, market, marketId, onEndCall }: Pr
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [transcript]);
 
-  const handleEndCall = useCallback(async () => {
+  const handleEndCall = useCallback(() => {
     try {
-      await conversation.endSession();
+      conversation.endSession();
     } catch {
-      // If endSession fails, still fire the callback
       const duration = Math.round((Date.now() - callStartRef.current) / 1000);
-      onEndCall(transcript, duration);
+      onEndCallRef.current(transcriptRef.current, duration);
     }
-  }, [conversation, onEndCall, transcript]);
+  }, [conversation]);
 
   const personaName = market?.personaName ?? (mode === "coach" ? "Sales Coach" : "AI Representative");
   const personaDetail = market ? `${market.role} · ${market.city}` : mode === "coach" ? "Hormozi-Style Coach" : "Synergy Lubricant";
@@ -178,7 +181,6 @@ export default function VoiceCallPanel({ mode, market, marketId, onEndCall }: Pr
 
       {/* Main call area */}
       <div className="flex-1 flex flex-col items-center justify-center gap-6 px-4">
-        {/* Persona info */}
         <div className="text-center">
           <div className="text-lg sm:text-xl font-bold text-gray-100">{personaName}</div>
           <div className="text-xs text-gray-500 mt-0.5">{personaDetail}</div>
@@ -198,10 +200,8 @@ export default function VoiceCallPanel({ mode, market, marketId, onEndCall }: Pr
           </div>
         </div>
 
-        {/* Status */}
         <div className={`text-sm font-medium ${phaseColor}`}>{phaseLabel}</div>
 
-        {/* Error */}
         {error && (
           <div className="max-w-sm text-center px-4 py-2 rounded-xl bg-accent-red/10 border border-accent-red/30">
             <span className="text-xs text-red-300">{error}</span>
@@ -238,7 +238,6 @@ export default function VoiceCallPanel({ mode, market, marketId, onEndCall }: Pr
       {/* Call controls */}
       <div className="px-4 py-5 sm:py-6 border-t border-navy-border/30 safe-bottom">
         <div className="flex items-center justify-center gap-6">
-          {/* Mute toggle */}
           <button
             onClick={() => conversation.setVolume({ volume: isSpeaking ? 0 : 1 })}
             className="w-14 h-14 rounded-full bg-navy-card border-2 border-navy-border text-lg flex items-center justify-center hover:border-gray-500 active:scale-90 transition-all"
@@ -246,7 +245,6 @@ export default function VoiceCallPanel({ mode, market, marketId, onEndCall }: Pr
             {isSpeaking ? "🔇" : "🔊"}
           </button>
 
-          {/* End call */}
           <button
             onClick={handleEndCall}
             className="w-16 h-16 rounded-full bg-accent-red flex items-center justify-center text-xl text-white hover:bg-red-600 active:scale-90 transition-all shadow-[0_0_20px_rgba(239,68,68,0.2)]"
