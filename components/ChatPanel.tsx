@@ -233,6 +233,7 @@ export default function ChatPanel({ mode, marketId, objection, userEmail, userNa
           audioLevel={voiceCall.audioLevel}
           liveTranscript={voiceCall.liveTranscript}
           transcript={callTranscript}
+          voiceError={voiceCall.voiceError}
           onStartListening={voiceCall.startListening}
           onStopListening={voiceCall.stopListening}
           onInterrupt={voiceCall.interrupt}

@@ -17,6 +17,7 @@ interface Props {
   audioLevel: number;
   liveTranscript: string;
   transcript: TranscriptLine[];
+  voiceError?: string | null;
   onStartListening: () => void;
   onStopListening: () => void;
   onInterrupt: () => void;
@@ -88,6 +89,7 @@ export default function VoiceCallPanel({
   audioLevel,
   liveTranscript,
   transcript,
+  voiceError,
   onStartListening,
   onStopListening,
   onInterrupt,
@@ -150,6 +152,13 @@ export default function VoiceCallPanel({
 
         {/* Waveform */}
         <WaveformBars level={audioLevel} active={phase === "listening"} />
+
+        {/* Voice error */}
+        {voiceError && (
+          <div className="max-w-sm text-center px-4 py-2 rounded-xl bg-accent-red/10 border border-accent-red/30">
+            <span className="text-xs text-red-300">{voiceError}</span>
+          </div>
+        )}
 
         {/* Live transcript preview */}
         {liveTranscript && (

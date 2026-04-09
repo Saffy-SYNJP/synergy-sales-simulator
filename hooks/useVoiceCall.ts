@@ -40,6 +40,7 @@ export function useVoiceCall({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoListenRef = useRef(false);
   const silenceWatchdogRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const drainCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const playback = useVoicePlayback();
 
@@ -107,41 +108,52 @@ export function useVoiceCall({
     }
   }, [active, aiLoading, latestAssistantText, latestAssistantId, voiceRole, playback, voice, resetSilenceWatchdog]);
 
-  // When AI finishes speaking, wait for audio to fully stop, then open mic
+  // Helper: open mic with silence watchdog
+  const openMicWithWatchdog = useCallback(() => {
+    setPhase("listening");
+    voice.start();
+    silenceWatchdogRef.current = setTimeout(() => {
+      if (!active) return;
+      voice.stop();
+      setTimeout(() => {
+        if (!active) return;
+        voice.start();
+        silenceWatchdogRef.current = setTimeout(() => {
+          if (!active) return;
+          voice.stop();
+          setPhase("idle");
+          setLiveTranscript("");
+        }, 5000);
+      }, 300);
+    }, 5000);
+  }, [active, voice]);
+
+  // When AI finishes speaking, double-check playback is truly done, then open mic
   useEffect(() => {
     if (!active) return;
     if (!autoListenRef.current) return;
     if (playback.speaking) return;
 
-    // Playback just ended — wait a beat for audio hardware to settle, then listen
+    // First check passed (speaking === false).
+    // Wait 500ms and check again to be sure audio hardware is fully silent.
     autoListenRef.current = false;
-    const delay = setTimeout(() => {
-      if (active) {
-        setPhase("listening");
-        voice.start();
-        // Start silence watchdog: if no speech in 5s, restart STT
-        silenceWatchdogRef.current = setTimeout(() => {
-          if (active) {
-            voice.stop();
-            setTimeout(() => {
-              if (active) {
-                voice.start();
-                // Second watchdog in case restart also stalls
-                silenceWatchdogRef.current = setTimeout(() => {
-                  if (active) {
-                    voice.stop();
-                    setPhase("idle");
-                    setLiveTranscript("");
-                  }
-                }, 5000);
-              }
-            }, 300);
-          }
-        }, 5000);
+    drainCheckRef.current = setTimeout(() => {
+      if (!active) return;
+      if (playback.speaking) {
+        // Still speaking — wait for next cycle
+        autoListenRef.current = true;
+        return;
       }
-    }, 600); // 600ms gap — lets speaker output fully drain before mic opens
-    return () => clearTimeout(delay);
-  }, [active, playback.speaking, voice]);
+      // Second check passed — wait full drain gap then open mic
+      setTimeout(() => {
+        if (active) openMicWithWatchdog();
+      }, 1500); // 1500ms drain gap — speaker output fully cleared
+    }, 500); // 500ms between double-check
+
+    return () => {
+      if (drainCheckRef.current) clearTimeout(drainCheckRef.current);
+    };
+  }, [active, playback.speaking, openMicWithWatchdog, playback]);
 
   // Track voice status → phase
   useEffect(() => {
@@ -151,20 +163,13 @@ export function useVoiceCall({
   const startListening = useCallback(() => {
     playback.stop();
     resetSilenceWatchdog();
-    // Wait for speaker to fully stop before opening mic
-    setTimeout(() => {
-      setPhase("listening");
-      voice.start();
-      // Silence watchdog
-      silenceWatchdogRef.current = setTimeout(() => {
-        voice.stop();
-        setTimeout(() => { voice.start(); }, 300);
-      }, 5000);
-    }, 300);
-  }, [playback, voice, resetSilenceWatchdog]);
+    // 1500ms drain gap before opening mic
+    setTimeout(() => openMicWithWatchdog(), 1500);
+  }, [playback, resetSilenceWatchdog, openMicWithWatchdog]);
 
   const stopListening = useCallback(() => {
     resetSilenceWatchdog();
+    if (drainCheckRef.current) { clearTimeout(drainCheckRef.current); drainCheckRef.current = null; }
     voice.stop();
     setPhase("idle");
   }, [voice, resetSilenceWatchdog]);
@@ -173,21 +178,16 @@ export function useVoiceCall({
     playback.stop();
     autoListenRef.current = false;
     resetSilenceWatchdog();
-    // Small delay after killing audio before opening mic
-    setTimeout(() => {
-      setPhase("listening");
-      voice.start();
-      silenceWatchdogRef.current = setTimeout(() => {
-        voice.stop();
-        setTimeout(() => { voice.start(); }, 300);
-      }, 5000);
-    }, 400);
-  }, [playback, voice, resetSilenceWatchdog]);
+    if (drainCheckRef.current) { clearTimeout(drainCheckRef.current); drainCheckRef.current = null; }
+    // 1500ms drain gap after killing audio
+    setTimeout(() => openMicWithWatchdog(), 1500);
+  }, [playback, resetSilenceWatchdog, openMicWithWatchdog]);
 
   // Cleanup on deactivate
   useEffect(() => {
     if (!active) {
       resetSilenceWatchdog();
+      if (drainCheckRef.current) { clearTimeout(drainCheckRef.current); drainCheckRef.current = null; }
       voice.stop();
       playback.stop();
       setPhase("idle");
@@ -203,6 +203,7 @@ export function useVoiceCall({
     liveTranscript,
     audioLevel: voice.level,
     speaking: playback.speaking,
+    voiceError: voice.errorMessage,
     startListening,
     stopListening,
     interrupt,

@@ -3,6 +3,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 type STTStatus = "idle" | "recording" | "processing" | "error";
 
+/** Error messages surfaced to the UI */
+export type STTError = string | null;
+
 interface Options {
   onTranscript: (text: string) => void;
   onFinal: (text: string) => void;
@@ -23,6 +26,7 @@ export function useVoiceInput({
 }: Options) {
   const [status, setStatus] = useState<STTStatus>("idle");
   const [level, setLevel] = useState(0);
+  const [errorMessage, setErrorMessage] = useState<STTError>(null);
 
   const streamRef = useRef<MediaStream | null>(null);
   const silenceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -109,13 +113,22 @@ export function useVoiceInput({
       return;
     }
 
-    // Get mic stream for level meter
+    // Get mic stream with echo cancellation for level meter
+    setErrorMessage(null);
     try {
       setStatus("processing");
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
       streamRef.current = stream;
       setupLevelMeter(stream);
-    } catch {
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Microphone access denied";
+      console.warn("[useVoiceInput] getUserMedia failed:", msg);
       // Level meter is optional — continue without it
     }
 
@@ -142,11 +155,22 @@ export function useVoiceInput({
     };
 
     rec.onerror = (e: any) => {
+      const err = e.error as string;
       // "aborted" and "no-speech" are non-fatal — restart if we still want to record
-      if (e.error === "aborted" || e.error === "no-speech") {
+      if (err === "aborted" || err === "no-speech") {
         return;
       }
-      console.error("[useVoiceInput] SpeechRecognition error:", e.error);
+      console.error("[useVoiceInput] SpeechRecognition error:", err);
+
+      // Surface actionable errors to the UI
+      if (err === "audio-capture") {
+        setErrorMessage("Microphone not found or already in use. Check your audio settings.");
+      } else if (err === "not-allowed") {
+        setErrorMessage("Microphone permission denied. Please allow mic access and try again.");
+      } else {
+        setErrorMessage(`Speech recognition error: ${err}`);
+      }
+
       setStatus("error");
       wantRecordingRef.current = false;
     };
@@ -183,5 +207,5 @@ export function useVoiceInput({
     };
   }, [cleanupAudio]);
 
-  return { status, level, start, stop };
+  return { status, level, start, stop, errorMessage };
 }
